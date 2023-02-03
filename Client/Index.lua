@@ -569,12 +569,13 @@ local function targetWebUI3d2d(oWebUI, tTrace)
     -- Check if cursor decal is valid, if not create it
     if not oTargetUI.cursor_decal or not oTargetUI.cursor_decal:IsValid() then
         local tLoc, tRot = findCursorDecalPos(tTrace)
+        local fCursorSize = oTargetUI:GetCursorSize()
 
         oTargetUI.cursor_decal = Decal(
             tLoc,
             tRot,
             "nanos-world::M_Default_Translucent_Lit_Decal",
-            Vector(oTargetUI:GetCursorSize()),
+            Vector(0.01, fCursorSize, fCursorSize),
             -1,
             0.0001
         )
