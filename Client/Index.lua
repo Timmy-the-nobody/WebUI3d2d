@@ -20,7 +20,7 @@ local deprojectScreenToWorld = Viewport.DeprojectScreenToWorld
 
 -- Dynamic vars (Internal)
 local oTargetUI = false
-local bDebugCommands = true
+local bDebugCommands = false
 local iNextTargetLookup = 0
 local iNextFreezeHandle = 0
 
@@ -837,7 +837,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
         self.sound:AttachTo(self.mesh, AttachmentRule.SnapToTarget, "", -1, false)
     end
 
-    -- Force `MakeNoSignal` call if no URL was passed
+    -- Force a `MakeNoSignal` call if the URL is not valid
     if not (isLocalURL(sPath) or isRemoteURL(sPath)) then
         self:MakeNoSignal()
     end
