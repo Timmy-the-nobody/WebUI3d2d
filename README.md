@@ -44,7 +44,7 @@
 #### 🔊 Attached 3D sound
   - If used, sounds emitted by the UI will play in the 3d space
 
-#### 🧱 Allows to override the plane StaticMesh used as `WebUI3d2d` parent
+#### 🧱 Allows to override the StaticMesh plane used as `WebUI3d2d` parent
   - For instance, you can create a curved UI depending on the mesh you use
   - Optionnaly, you can change the material index used for texture projection on the mesh
   - Automatic interract distance, depending on the WebUI3d2d mesh scale
