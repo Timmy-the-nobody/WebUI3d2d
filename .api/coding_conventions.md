@@ -34,7 +34,7 @@ Indicate the variable type with the first letter of the variable (except for fun
 * **s**String
 * **t**Table
 * **x**Undefined
-* **o**Object (object using a gamamode class metatable)
+* **o**Object
 * **p**Player (instance of nanos world `Player` class)
 * **e**Entity (instance of a nanos world `BaseActor` derived class)
 
