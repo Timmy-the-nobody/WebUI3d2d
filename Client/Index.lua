@@ -606,9 +606,14 @@ Client.Subscribe("Tick", function(fDelta)
     -- Update cursor decal location and visibility
     cursorDecalTick(fDelta)
 
-    -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted or not
+    -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted/focused or not
     if (iTime < iNextTargetLookup) then return end
-    iNextTargetLookup = iTime + (1000 / (oTargetUI and iTargetTickRate or iTargetIdleTickRate))
+
+    if (oTargetUI or localPlayer():GetCameraFocusedWebUI3d2d()) then
+        iNextTargetLookup = iTime + (1000 / iTargetTickRate)
+    else
+        iNextTargetLookup = iTime + (1000 / iTargetIdleTickRate)
+    end
 
     -- Find a targeted WebUI3d2d
     local oWebUI, iX, iY, tTrace = targetLookup()
