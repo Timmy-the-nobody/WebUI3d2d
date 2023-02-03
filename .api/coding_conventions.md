@@ -6,7 +6,7 @@ If you want to do a PR, please follow some conventions in your code in order to 
 ## 📙 Basics
 
 * Keep your code consistant and follow all the points listed below
-* Avoid redundant code, e.g: prefer a function to a pyramid of conditions
+* Avoid redundant code, e.g: prefer a function to a duplication of the same conditions
 * Avoid passing packets through the network unnecessarily (e.g. using the broadcast parameter of `SetValue` when only one client needs it's data)
 * Localize your functions/variables/tables/etc.. whenever it's possible, always use the smallest scope possible
 * Localize heavy globals on the top of your files when they're called often
