@@ -1,4 +1,4 @@
-[ᐊ Return to docs](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/docs.md)
+[ᐊ Return to repo](https://github.com/Timmy-the-nobody/WebUI3d2d)
 
 # 💡 Pull Requests
 If you want to do a PR, please follow some conventions in your code in order to facilitate reading, refactoring, and communication within the team
