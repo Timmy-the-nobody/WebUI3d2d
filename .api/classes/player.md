@@ -53,8 +53,8 @@ my_player:FocusWebUI3d2dCamera(oWebUI, fCameraDist, fClipPlaneDist, iBlendTime)
 | Type                  | Name                  | Default                                                     | Description
 | -                     |:-                     |:-                                                           |:-
 | [WebUI3d2d]           | `oWebUI`              |                                                             | The WebUI3d2d to focus the camera on
-| [float]               | `fCameraDist`         | Calculated according to the mesh bounds if nil or `false`   | The distance from the camera to the WebUI3d2d
-| [float]               | `fClipPlaneDist`      | Calculated according to the mesh bounds if nil or `false`   | The distance from the camera to the clip plane
+| [float]               | `fCameraDist`         | Calculated according to the mesh bounds if `nil` or `false` | The distance from the camera to the WebUI3d2d
+| [float]               | `fClipPlaneDist`      | Calculated according to the mesh bounds if `nil` or `false` | The distance from the camera to the clip plane
 | [integer]             | `iBlendTime`          | `500`                                                       | The time it takes to blend to the new camera position
 
 ##
