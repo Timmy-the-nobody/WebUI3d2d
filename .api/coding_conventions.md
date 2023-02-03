@@ -48,4 +48,4 @@ Indicate the variable type with the first letter of the variable (except for fun
 * False and nil are falsy in conditional expressions. Use shortcuts when you can, unless you need to know the difference between false and nil
 * Even though Lua allows it, do not omit parenthesis for functions that take a unique string literal argument
 * Prefer function syntax over variable syntax. This helps differentiate between named and anonymous functions
-* Perform validation early in your functions, and return as early as possible
+* Perform validation as early as possible in your functions/loops/..., and return/break/goto as early as possible to avoid pyramids of conditions
