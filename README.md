@@ -10,6 +10,10 @@
 ## 🐛 Bug report/Feature request
 [If you find a bug or have a feature request you can add it here](https://github.com/Timmy-the-nobody/WebUI3d2d/issues/new/choose)
 
+## 💡 Pull Requests
+Your PRs are welcome!
+<br> However, in order to keep a clean code base, please follow the [coding conventions](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/coding_conventions.md) that are applied in this resource
+
 ## 📑 Features
 
 #### 🔍 Trace control

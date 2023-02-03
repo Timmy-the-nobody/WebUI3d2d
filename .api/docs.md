@@ -16,9 +16,3 @@
 - Load the WebUI3d2d library in one of the following ways
   - **A:** By adding `"webui3d2d"` in the `packages` array of `/Server/Cofig.toml`
   - **B:** By adding `"webui3d2d"` in the `packages_requirements` array of a script (or gamemode) package
-
----
-
-## 💡 Pull Requests
-Your PRs are welcome!
-<br> However, in order to keep a clean code base, please follow the [coding conventions](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/coding_conventions.md) that are applied in this resource
