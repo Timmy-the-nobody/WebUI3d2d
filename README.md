@@ -2,6 +2,8 @@
 
 ![](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/media/background.png)
 
+### WebUI3d2d is a library to spawn dynamic WebUIs in world space on nanos world!
+
 ## 📘 Docs
 [Click here to access the documentation](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/docs.md)
 
