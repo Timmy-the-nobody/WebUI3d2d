@@ -637,7 +637,10 @@ end)
 
 --[[ Input KeyDown ]]--
 Input.Subscribe("KeyDown", function(sKey)
-    if oTargetUI and oTargetUI:IsValid() and getKeyInfo(sKey) then
+    if not oTargetUI or oTargetUI:IsValid() then return end
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
+
+    if getKeyInfo(sKey) then
         return false
     end
 end)
@@ -645,6 +648,7 @@ end)
 --[[ Input KeyDown ]]--
 Input.Subscribe("KeyPress", function(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
 
     local iKeyCode, iASCIICode, bASCIICharOnly = getKeyInfo(sKey)
     if not iKeyCode then return end
@@ -668,6 +672,7 @@ end)
 --[[ Input KeyUp ]]--
 Input.Subscribe("KeyUp", function(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
 
     local iKeyCode, _, bASCIICharOnly = getKeyInfo(sKey)
     if not iKeyCode or not bASCIICharOnly then return end
@@ -801,6 +806,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.cursor_decal_enabled = true
     self.cursor_trace_control = true
     self.camera_trace_control = true
+    self.keyboard_input = true
     self.material_index = (iMatIndex or -1)
     self.reload_on_fail = true
     self.cursor_x = 0
@@ -973,6 +979,26 @@ end
 ]]--
 function WebUI3d2d:IsCameraTraceControlEnabled()
     return self.camera_trace_control
+end
+
+--[[
+    WebUI3d2d:SetKeyboardInputEnabled
+        desc: Enable or disable the keyboard input
+        args:
+            bEnabled: Should the WebUI3d2d accept keyboard input or not (boolean)
+]]--
+function WebUI3d2d:SetKeyboardInputEnabled(bEnabled)
+    self.keyboard_input = (bEnabled and true or false)
+end
+
+--[[
+    WebUI3d2d:IsKeyboardInputEnabled
+        desc: Returns wether the WebUI3d2d accept keyboard input or not
+        returns:
+            Is the WebUI3d2d accepting keyboard input? (boolean)
+]]--
+function WebUI3d2d:IsKeyboardInputEnabled()
+    return self.keyboard_input
 end
 
 --[[

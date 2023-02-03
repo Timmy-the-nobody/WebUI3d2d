@@ -93,11 +93,13 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`IsCursorTraceControlEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursortracecontrolenabled
 [`IsCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursordecalenabled
 [`IsInteractable`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#isinteractable
+[`IsKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardinputenabled
 [`MakeNoSignal`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#makenosignal
 [`SetCameraTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcameratracecontrol
 [`SetCursorTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursortracecontrol
 [`SetCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursordecalenabled
 [`SetCursorSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursorsize
+[`SetKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardinputenabled
 
 > The following methods can be called on any [WebUI3d2d] instance
 
@@ -111,11 +113,13 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 | [boolean]             | [`IsCursorTraceControlEnabled`]       | Returns wether the cursor trace control is enabled or not
 | [boolean]             | [`IsCursorDecalEnabled`]              | Returns wether the 3D cursor decal is enabled or not
 | [boolean]             | [`IsInteractable`]                    | Returns wether the WebUI3d2d is interactable or not
+| [boolean]             | [`IsKeyboardInputEnabled`]            | Returns wether the WebUI3d2d accept keyboard input or not
 |                       | [`MakeNoSignal`]                      | Set the WebUI3d2d to a "no signal" state
 |                       | [`SetCameraTraceControl`]             | Enable or disable the camera trace control
 |                       | [`SetCursorTraceControl`]             | Enable or disable the cursor trace control
 |                       | [`SetCursorDecalEnabled`]             | Enable or disable the 3D cursor decal
 |                       | [`SetCursorSize`]                     | Set the cursor decal size
+|                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
 
 #### Wrapper methods
 [`AttachTo`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-attachto
@@ -231,6 +235,15 @@ local ret = my_webui:IsInteractable()
 ```
 
 ##
+#### `IsKeyboardInputEnabled`
+> Returns wether the WebUI3d2d accept keyboard input or not
+>
+> Returns [boolean]
+```lua
+local ret = my_webui:IsKeyboardInputEnabled()
+```
+
+##
 #### `MakeNoSignal`
 > Set the WebUI3d2d to a "no signal" state
 ```lua
@@ -239,7 +252,7 @@ my_webui:MakeNoSignal()
 
 ##
 #### `SetCameraTraceControl`
-> Enable or disable the camera trace control
+> Enable or disable the camera trace control (enabled by default)
 ```lua
 my_webui:SetCameraTraceControl(bEnabled)
 ```
@@ -249,7 +262,7 @@ my_webui:SetCameraTraceControl(bEnabled)
 
 ##
 #### `SetCursorTraceControl`
-> Enable or disable the mouse trace control
+> Enable or disable the mouse trace control (enabled by default)
 ```lua
 my_webui:SetCursorTraceControl(bEnabled)
 ```
@@ -259,7 +272,7 @@ my_webui:SetCursorTraceControl(bEnabled)
 
 ##
 #### `SetCursorDecalEnabled`
-> Enable or disable the 3D cursor decal
+> Enable or disable the 3D cursor decal (enabled by default)
 ```lua
 my_webui:SetCursorDecalEnabled(bEnabled)
 ```
@@ -276,6 +289,16 @@ my_webui:SetCursorSize(fSize)
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
 | [float]               | `fSize`               |                           | The new size of the cursor decal
+
+##
+#### `SetKeyboardInputEnabled`
+> Enable or disable the keyboard input (enabled by default)
+```lua
+my_webui:SetKeyboardInputEnabled(bEnabled)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bEnabled`            |                           | The new size of the cursor decal
 
 ---
 
