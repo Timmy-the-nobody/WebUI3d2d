@@ -1,6 +1,9 @@
-If you want to do a PR, please some conventions in your code in order to facilitate reading, refactoring, and communication within the team.
+[ᐊ Return to docs](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/docs.md)
 
-## Basics
+# 💡 Pull Requests
+If you want to do a PR, please follow some conventions in your code in order to facilitate reading, refactoring, and communication within the team
+
+## 📙 Basics
 
 * Keep your code consistant and follow all the points listed below
 * Avoid redundant code, e.g: prefer a function to a pyramid of conditions
@@ -12,7 +15,7 @@ If you want to do a PR, please some conventions in your code in order to facilit
 * Avoid looping through big tables
 * Add validity checks in delayed operations (timers, SQL fetch, etc..)
 
-## Syntax : Variables
+## 🖋️ Syntax : Variables
 
 * Global vars must be formatted in **PascalCase**
 * Local vars must be formatted in **camelCase**
@@ -35,7 +38,7 @@ Indicate the variable type with the first letter of the variable (except for fun
 * **p**Player (instance of nanos world `Player` class)
 * **e**Entity (instance of a nanos world `BaseActor` derived class)
 
-## Syntax : Style
+## 😎 Syntax : Style
 * Indent with 4 spaces
 * Use a space after a `--` comment
 * Always put a space after commas and assignment signs
