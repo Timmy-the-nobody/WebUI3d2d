@@ -51,7 +51,7 @@
 
 #### 🚀 Optimized target lookup
   - The "target lookup" is what handles 3D UI targetting, the cursor location on a targetted UI, and so on..
-  - The maximum target lookup call are made when an UI is already targetted (12FPS), otherwise there's only 2 calls per second
+  - The maximum target lookup calls are made when an UI is already targetted (12 calls per second), otherwise there's only 4 calls per second
 
 #### 🧊 Automatic freezing of the CEF loop work, and the CEF painting
   - This greatly optimizes the game experience when no WebUI3d2d is targeted (or in a decent range)
