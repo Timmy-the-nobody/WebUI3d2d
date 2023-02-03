@@ -451,12 +451,12 @@ end
 -- WebUI3d2d targeting
 ----------------------------------------------------------------------
 --[[
-    Player:GetTargetWebUI3d2d
+    Player:GetTargetedWebUI3d2d
         desc: Get the current targeted WebUI3d2d
         return:
             WebUI3d2d object (WebUI3d2d)
 ]]--
-function Player:GetTargetWebUI3d2d()
+function Player:GetTargetedWebUI3d2d()
     if oTargetUI and oTargetUI:IsValid() then
         return oTargetUI
     end

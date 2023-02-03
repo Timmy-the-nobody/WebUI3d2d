@@ -7,7 +7,7 @@
 [`GetCameraFocusedWebUI3d2d`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#getcamerafocusedwebui3d2d
 [`FocusWebUI3d2dCamera`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#focuswebui3d2dcamera
 [`UnfocusWebUI3d2dCamera`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#unfocuswebui3d2dcamera
-[`GetTargetWebUI3d2d`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#gettargetwebui3d2d
+[`GetTargetedWebUI3d2d`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#gettargetedwebui3d2d
 
 # 👩‍💻 Player
 
@@ -21,18 +21,18 @@
 
 | Returns               | Name                                  | Description
 | -                     |:-                                     |:-
-| [WebUI3d2d]           | [`GetTargetWebUI3d2d`]                | Get the current targeted WebUI3d2d
+| [WebUI3d2d]           | [`GetTargetedWebUI3d2d`]              | Get the current targeted WebUI3d2d
 | [WebUI3d2d]           | [`GetCameraFocusedWebUI3d2d`]         | Get the current camera focused WebUI3d2d
 |                       | [`FocusWebUI3d2dCamera`]              | Focus the camera on a WebUI3d2d
 |                       | [`UnfocusWebUI3d2dCamera`]            | Unfocus the WebUI3d2d camera
 
 ##
-### `GetTargetWebUI3d2d`
+### `GetTargetedWebUI3d2d`
 > Get the current targeted WebUI3d2d
 >
 > Returns [WebUI3d2d], or `nil` if no WebUI3d2d is targeted
 ```lua
-local ret = my_player:GetTargetWebUI3d2d()
+local ret = my_player:GetTargetedWebUI3d2d()
 ```
 
 ##
