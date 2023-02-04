@@ -150,10 +150,10 @@ if bDebugCommands then
         if oWebUI and oWebUI:IsValid() then
             localPlayer():FocusWebUI3d2dCamera(oWebUI)
         end
-    end, "Focus camera on a WebUI3d2d", {"id", "number", "WebUI3d2d ID"})
+    end, "Focus camera on a WebUI3d2d", {"id"})
 
     -- webui3d2d_unfocus
-    Console.RegisterCommand("webui3d2d_unfocus", function(iID)
+    Console.RegisterCommand("webui3d2d_unfocus", function()
         if localPlayer():GetCameraFocusedWebUI3d2d() then
             localPlayer():UnfocusWebUI3d2dCamera()
         end
