@@ -3,7 +3,7 @@
 # 💡 Pull Requests
 If you want to do a PR, please follow some conventions in your code in order to facilitate reading, refactoring, and communication within the team
 
-## Commit conventions
+## 🐙 Commit conventions
 * Follow [SemVer](https://semver.org/) convention for version naming
 * Describe the features, fixes, breaking changes, and so on.. made in commit messages
 * The commit message should be structured as follows:
