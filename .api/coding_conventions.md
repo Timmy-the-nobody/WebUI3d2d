@@ -3,6 +3,28 @@
 # 💡 Pull Requests
 If you want to do a PR, please follow some conventions in your code in order to facilitate reading, refactoring, and communication within the team
 
+## Commit conventions
+* Follow [SemVer](https://semver.org/) convention for version naming
+* Describe the features, fixes, breaking changes, and so on.. made in commit messages
+* The commit message should be structured as follows:
+```md
+<type> [optional scope/feature]: <description>
+```
+* Commit types:
+  - `feat`: addition of a new feature
+  - `fix`: fix a bug
+  - `perf`: performance improvement
+  - `refactor`: change that doesn't bring any new feature or performance improvement
+  - `style`: change that doesn't bring any functional or semantic alteration (indentation, adding a space, renaming a variable...)
+  - `docs`: writing or updating documentation
+  - `test`: adding or modifying tests
+  - `chore`: no production code change (editing .gitignore, gitattributes...)
+  - `!`: breaking changes, it must be indicated by a `!` immediately before the `:`
+* Example:
+```md
+docs (coding conventions): add commit conventions
+```
+
 ## 📙 Basics
 
 * Keep your code consistant and follow all the points listed below
