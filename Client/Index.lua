@@ -610,7 +610,10 @@ Client.Subscribe("Tick", function(fDelta)
     -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted/focused or not
     if (iTime < iNextTargetLookup) then return end
 
-    if (oTargetUI or localPlayer():GetCameraFocusedWebUI3d2d()) then
+    local eChar = localPlayer()
+    if not eChar or not eChar:IsValid() then return end
+
+    if (oTargetUI or eChar:GetCameraFocusedWebUI3d2d()) then
         iNextTargetLookup = iTime + (1000 / iTargetTickRate)
     else
         iNextTargetLookup = iTime + (1000 / iTargetIdleTickRate)
