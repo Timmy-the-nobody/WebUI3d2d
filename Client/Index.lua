@@ -803,8 +803,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     end
 
     -- WebUI3d2d instance and listeners
-    self.Super:Constructor("", sPath, false, bTransparent, false, iW, iH)
-    self:SetVisibility(WebUIVisibility.Hidden)
+    self.Super:Constructor("", sPath, WebUIVisibility.Hidden, bTransparent, false, iW, iH)
     self:Subscribe("Fail", self.OnFail)
     self:Subscribe("Ready", self.OnReady)
     self:Subscribe("Destroy", self.OnDestroy)
