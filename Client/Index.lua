@@ -302,7 +302,7 @@ local function setupMaterialParams(xActor)
     xActor:SetMaterialScalarParameter("Specular", 0)
     xActor:SetMaterialScalarParameter("Roughness", 1)
     xActor:SetMaterialColorParameter("Normal", Color(0))
-    xActor:SetMaterialColorParameter("Emissive", Color(0.08))
+    xActor:SetMaterialColorParameter("Emissive", Color(0.2))
 end
 
 --[[
