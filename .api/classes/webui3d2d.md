@@ -105,6 +105,11 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`SetKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardeventsenabled
 [`SetKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardinputenabled
 
+[`AddMouseAliasKey`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#addmousealiaskey
+[`RemoveMouseAliasKey`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#removemousealiaskey
+[`GetAllMouseAliasKeys`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getallmousealiaskeys
+[`GetMouseAliasKey`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getmousealiaskey
+
 > The following methods can be called on any [WebUI3d2d] instance
 
 | Returns               | Name                                  | Description
@@ -125,9 +130,13 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 |                       | [`SetCursorTraceControl`]             | Enable or disable the cursor trace control
 |                       | [`SetCursorDecalEnabled`]             | Enable or disable the 3D cursor decal
 |                       | [`SetCursorSize`]                     | Set the cursor decal size
+|                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
 |                       | [`SetKeyboardEventsEnabled`]          | Enable or disable the keyboard events
 |                       | [`SetMouseEventsEnabled`]             | Enable or disable the mouse events
-|                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
+|                       | [`AddMouseAliasKey`]                  | Add a key to the mouse aliases
+|                       | [`RemoveMouseAliasKey`]               | Remove a key from the mouse aliases
+| [table]               | [`GetAllMouseAliasKeys`]              | Get the mouse aliases table
+| [string]              | [`GetMouseAliasKey`]                  | Get the mouse button aliased to a key
 
 #### Wrapper methods
 [`AttachTo`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-attachto
@@ -317,6 +326,16 @@ my_webui:SetCursorSize(fSize)
 | [float]               | `fSize`               |                           | The new size of the cursor decal
 
 ##
+#### `SetKeyboardInputEnabled`
+> Enable or disable the keyboard input (enabled by default)
+```lua
+my_webui:SetKeyboardInputEnabled(bEnabled)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bEnabled`            |                           | The new size of the cursor decal
+
+##
 #### `SetKeyboardEventsEnabled`
 > Enable or disable the keyboard events (disabled by default)
 ```lua
@@ -337,14 +356,49 @@ my_webui:SetMouseEventsEnabled(bEnabled)
 | [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d (targeted) allow mouse events to be triggered or not
 
 ##
-#### `SetKeyboardInputEnabled`
-> Enable or disable the keyboard input (enabled by default)
+#### `AddMouseAliasKey`
+> Add a key to the mouse aliases
 ```lua
-my_webui:SetKeyboardInputEnabled(bEnabled)
+my_webui:AddMouseAliasKey(sKeyName, sMouseButton)
+
+-- Here we make the interact key acts as a left click
+my_webui:AddMouseAliasKey(Input.GetMappedKeys("Interact")[1], "LeftMouseButton")
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | The new size of the cursor decal
+| [string]              | `sKey`                |                           | The key to use as alias
+| [string]              | `sMouseButton`        |                           | The mouse button that will be aliased
+
+##
+#### `RemoveMouseAliasKey`
+> Remove a key from the mouse aliases
+```lua
+my_webui:RemoveMouseAliasKey(sKeyName)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [string]              | `sKey`                |                           | The key to be removed
+
+##
+#### `GetAllMouseAliasKeys`
+> Get the mouse aliases table
+>
+> Returns [table]
+```lua
+local ret = my_webui:GetAllMouseAliasKeys()
+```
+
+##
+#### `GetMouseAliasKey`
+> Get the mouse button aliased to a key
+>
+> Returns [string]
+```lua
+local ret = my_webui:GetMouseAliasKey()
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [string]              | `sKey`                |                           | The key to be checked
 
 ---
 
