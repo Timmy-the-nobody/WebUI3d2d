@@ -93,12 +93,16 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`IsCursorTraceControlEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursortracecontrolenabled
 [`IsCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursordecalenabled
 [`IsInteractable`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#isinteractable
+[`IsMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#ismouseeventsenabled
+[`IsKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardeventsenabled
 [`IsKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardinputenabled
 [`MakeNoSignal`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#makenosignal
 [`SetCameraTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcameratracecontrol
 [`SetCursorTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursortracecontrol
 [`SetCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursordecalenabled
 [`SetCursorSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursorsize
+[`SetMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setmouseeventsenabled
+[`SetKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardeventsenabled
 [`SetKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardinputenabled
 
 > The following methods can be called on any [WebUI3d2d] instance
@@ -114,11 +118,15 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 | [boolean]             | [`IsCursorDecalEnabled`]              | Returns wether the 3D cursor decal is enabled or not
 | [boolean]             | [`IsInteractable`]                    | Returns wether the WebUI3d2d is interactable or not
 | [boolean]             | [`IsKeyboardInputEnabled`]            | Returns wether the WebUI3d2d accept keyboard input or not
+| [boolean]             | [`IsKeyboardEventsEnabled`]           | Returns wether the WebUI3d2d allow keyboard events or not
+| [boolean]             | [`IsMouseEventsEnabled`]              | Returns wether the WebUI3d2d allow mouse events or not
 |                       | [`MakeNoSignal`]                      | Set the WebUI3d2d to a "no signal" state
 |                       | [`SetCameraTraceControl`]             | Enable or disable the camera trace control
 |                       | [`SetCursorTraceControl`]             | Enable or disable the cursor trace control
 |                       | [`SetCursorDecalEnabled`]             | Enable or disable the 3D cursor decal
 |                       | [`SetCursorSize`]                     | Set the cursor decal size
+|                       | [`SetKeyboardEventsEnabled`]          | Enable or disable the keyboard events
+|                       | [`SetMouseEventsEnabled`]             | Enable or disable the mouse events
 |                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
 
 #### Wrapper methods
@@ -244,6 +252,24 @@ local ret = my_webui:IsKeyboardInputEnabled()
 ```
 
 ##
+#### `IsKeyboardEventsEnabled`
+> Returns wether the WebUI3d2d allow keyboard events or not
+>
+> Returns [boolean]
+```lua
+local ret = my_webui:IsKeyboardEventsEnabled()
+```
+
+##
+#### `IsMouseEventsEnabled`
+> Returns wether the WebUI3d2d allow mouse events or not
+>
+> Returns [boolean]
+```lua
+local ret = my_webui:IsMouseEventsEnabled()
+```
+
+##
 #### `MakeNoSignal`
 > Set the WebUI3d2d to a "no signal" state
 ```lua
@@ -289,6 +315,26 @@ my_webui:SetCursorSize(fSize)
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
 | [float]               | `fSize`               |                           | The new size of the cursor decal
+
+##
+#### `SetKeyboardEventsEnabled`
+> Enable or disable the keyboard events (disabled by default)
+```lua
+my_webui:SetKeyboardEventsEnabled(bEnabled)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d (targeted) allow keyboard events to be triggered or not
+
+##
+#### `SetMouseEventsEnabled`
+> Enable or disable the mouse events (disabled by default)
+```lua
+my_webui:SetMouseEventsEnabled(bEnabled)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d (targeted) allow mouse events to be triggered or not
 
 ##
 #### `SetKeyboardInputEnabled`
