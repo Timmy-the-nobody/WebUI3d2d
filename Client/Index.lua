@@ -644,72 +644,11 @@ Client.Subscribe("Tick", function(fDelta)
     end
 end)
 
---[[ Input KeyDown ]]--
-Input.Subscribe("KeyDown", function(sKey)
-    if not oTargetUI or oTargetUI:IsValid() then return end
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
-
-    if getKeyInfo(sKey) and oTargetUI:IsKeyboardEventsBlocked() then
-        return false
-    end
-end)
-
---[[ Input KeyDown ]]--
-Input.Subscribe("KeyPress", function(sKey)
-    if not oTargetUI or not oTargetUI:IsValid() then return end
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
-
-    local iKeyCode, iASCIICode, bASCIICharOnly = getKeyInfo(sKey)
-    if not iKeyCode then return end
-
-    local iWebUIModifiers = getWebUIModifiers()
-
-    if not bASCIICharOnly then
-        oTargetUI:SendKeyEvent(WebUIKeyType.Down, iKeyCode, iWebUIModifiers)
-        oTargetUI.down_keys[iKeyCode] = true
-    end
-
-    if iASCIICode then
-        oTargetUI:SendKeyEvent(WebUIKeyType.Char, iASCIICode, iWebUIModifiers)
-    end
-
-    oTargetUI.last_activity = Client.GetTime()
-
-    if oTargetUI:IsKeyboardEventsBlocked() then
-        return false
-    end
-end)
-
---[[ Input KeyUp ]]--
-Input.Subscribe("KeyUp", function(sKey)
-    if not oTargetUI or not oTargetUI:IsValid() then return end
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
-
-    local iKeyCode, _, bASCIICharOnly = getKeyInfo(sKey)
-    if not iKeyCode or not bASCIICharOnly then return end
-
-    oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, getWebUIModifiers())
-    oTargetUI.down_keys[iKeyCode] = nil
-    oTargetUI.last_activity = Client.GetTime()
-end)
-
---[[ Input MouseScroll ]]--
-Input.Subscribe("MouseScroll", function(_, _, iDelta)
-    if not oTargetUI or not oTargetUI:IsValid() then return end
-
-    local iWHMax = mathMax(oTargetUI.width, oTargetUI.height)
-    local iScroll = (iDelta * mathFloor(iWHMax * 0.1))
-
-    oTargetUI:SendMouseWheelEvent(oTargetUI.cursor_x, oTargetUI.cursor_y, 0, iScroll)
-    oTargetUI.last_activity = Client.GetTime()
-
-    if oTargetUI:IsMouseEventsBlocked() then
-        return false
-    end
-end)
-
---[[ Input MouseDown ]]--
-Input.Subscribe("MouseDown", function(sKey)
+----------------------------------------------------------------------
+-- Mouse Events
+----------------------------------------------------------------------
+--[[ doMouseDown ]]--
+local function doMouseDown(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not tMouseTypes[sKey] then return end
 
@@ -745,10 +684,15 @@ Input.Subscribe("MouseDown", function(sKey)
     if oTargetUI:IsMouseEventsBlocked() then
         return false
     end
+end
+
+--[[ Input MouseDown ]]--
+Input.Subscribe("MouseDown", function(sKey)
+    return doMouseDown(sKey)
 end)
 
---[[ Input MouseUp ]]--
-Input.Subscribe("MouseUp", function(sKey)
+--[[ doMouseUp ]]--
+local function doMouseUp(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not tMouseTypes[sKey] then return end
 
@@ -762,6 +706,90 @@ Input.Subscribe("MouseUp", function(sKey)
     )
 
     oTargetUI.down_mouse_buttons[sKey] = nil
+    oTargetUI.last_activity = Client.GetTime()
+
+    if oTargetUI:IsMouseEventsBlocked() then
+        return false
+    end
+end
+
+--[[ Input MouseUp ]]--
+Input.Subscribe("MouseUp", function(sKey)
+    return doMouseUp(sKey)
+end)
+
+----------------------------------------------------------------------
+-- Keyboard Events
+----------------------------------------------------------------------
+--[[ Input KeyDown ]]--
+Input.Subscribe("KeyDown", function(sKey)
+    if not oTargetUI or oTargetUI:IsValid() then return end
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
+
+    if getKeyInfo(sKey) and oTargetUI:IsKeyboardEventsBlocked() then
+        return false
+    end
+end)
+
+--[[ Input KeyPress ]]--
+Input.Subscribe("KeyPress", function(sKey)
+    if not oTargetUI or not oTargetUI:IsValid() then return end
+
+    -- Mouse button alias check
+    if oTargetUI.mouse_aliases[sKey] then
+        doMouseDown(oTargetUI.mouse_aliases[sKey])
+    end
+
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
+
+    local iKeyCode, iASCIICode, bASCIICharOnly = getKeyInfo(sKey)
+    if not iKeyCode then return end
+
+    local iWebUIModifiers = getWebUIModifiers()
+
+    if not bASCIICharOnly then
+        oTargetUI:SendKeyEvent(WebUIKeyType.Down, iKeyCode, iWebUIModifiers)
+        oTargetUI.down_keys[iKeyCode] = true
+    end
+
+    if iASCIICode then
+        oTargetUI:SendKeyEvent(WebUIKeyType.Char, iASCIICode, iWebUIModifiers)
+    end
+
+    oTargetUI.last_activity = Client.GetTime()
+
+    if oTargetUI:IsKeyboardEventsBlocked() then
+        return false
+    end
+end)
+
+--[[ Input KeyUp ]]--
+Input.Subscribe("KeyUp", function(sKey)
+    if not oTargetUI or not oTargetUI:IsValid() then return end
+
+    -- Mouse button alias check
+    if oTargetUI.mouse_aliases[sKey] then
+        doMouseUp(oTargetUI.mouse_aliases[sKey])
+    end
+
+    if not oTargetUI:IsKeyboardInputEnabled() then return end
+
+    local iKeyCode, _, bASCIICharOnly = getKeyInfo(sKey)
+    if not iKeyCode or not bASCIICharOnly then return end
+
+    oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, getWebUIModifiers())
+    oTargetUI.down_keys[iKeyCode] = nil
+    oTargetUI.last_activity = Client.GetTime()
+end)
+
+--[[ Input MouseScroll ]]--
+Input.Subscribe("MouseScroll", function(_, _, iDelta)
+    if not oTargetUI or not oTargetUI:IsValid() then return end
+
+    local iWHMax = mathMax(oTargetUI.width, oTargetUI.height)
+    local iScroll = (iDelta * mathFloor(iWHMax * 0.1))
+
+    oTargetUI:SendMouseWheelEvent(oTargetUI.cursor_x, oTargetUI.cursor_y, 0, iScroll)
     oTargetUI.last_activity = Client.GetTime()
 
     if oTargetUI:IsMouseEventsBlocked() then
@@ -824,9 +852,10 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.camera_trace_control = true
     self.mouse_events_blocked = true
     self.keyboard_events_blocked = true
-    self.keyboard_input = true
+    self.keyboard_input_enabled = true
     self.material_index = (iMatIndex or -1)
     self.reload_on_fail = true
+    self.mouse_aliases = {}
 
     self.cursor_x = 0
     self.cursor_y = 0
@@ -1047,7 +1076,7 @@ end
             bEnabled: Should the WebUI3d2d accept keyboard input or not (boolean)
 ]]--
 function WebUI3d2d:SetKeyboardInputEnabled(bEnabled)
-    self.keyboard_input = (bEnabled and true or false)
+    self.keyboard_input_enabled = (bEnabled and true or false)
 end
 
 --[[
@@ -1057,7 +1086,40 @@ end
             Is the WebUI3d2d accepting keyboard input? (boolean)
 ]]--
 function WebUI3d2d:IsKeyboardInputEnabled()
-    return self.keyboard_input
+    return self.keyboard_input_enabled
+end
+
+--[[
+    WebUI3d2d:AddMouseAliasKey
+        desc: Add a key to the mouse aliases
+        args:
+            sMouseButton: The mouse button to be aliased (string)
+            sKey: The key to be aliased (string)
+]]--
+function WebUI3d2d:AddMouseAliasKey(sMouseButton, sKey)
+    self.mouse_aliases[sKey] = sMouseButton
+end
+
+--[[
+    WebUI3d2d:RemoveMouseAliasKey
+        desc: Remove a key from the mouse aliases
+        args:
+            sKey: The key to be removed (string)
+]]--
+function WebUI3d2d:RemoveMouseAliasKey(sKey)
+    self.mouse_aliases[sKey] = nil
+end
+
+--[[
+    WebUI3d2d:GetMouseAliasKey
+        desc: Get the mouse button aliased to a key
+        args:
+            sKey: The key to be checked (string)
+        returns:
+            The mouse button aliased to the key (string)
+]]--
+function WebUI3d2d:GetMouseAliasKey(sKey)
+    return self.mouse_aliases[sKey]
 end
 
 --[[
