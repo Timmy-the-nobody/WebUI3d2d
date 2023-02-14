@@ -413,14 +413,17 @@ local function cursorDecalTick(fDelta)
     end
 
     -- Lerp to targetted cursor location if visible
-    if oTargetUI.cursor_decal:IsVisible() then
-        oTargetUI.cursor_decal:SetLocation(lerpVector(
-            oTargetUI.cursor_decal:GetLocation(),
-            oTargetUI.cursor_decal:GetValue("target_location"),
-            fDelta,
-            iTargetTickRate
-        ))
-    end
+    if not oTargetUI.cursor_decal:IsVisible() then return end
+
+    local tTargetLoc = oTargetUI.cursor_decal:GetValue("target_location")
+    if not tTargetLoc then return end
+
+    oTargetUI.cursor_decal:SetLocation(lerpVector(
+        oTargetUI.cursor_decal:GetLocation(),
+        tTargetLoc,
+        fDelta,
+        iTargetTickRate
+    ))
 end
 
 --[[
