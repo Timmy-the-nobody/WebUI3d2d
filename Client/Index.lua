@@ -685,9 +685,7 @@ local function doMouseDown(sKey)
 end
 
 --[[ Input MouseDown ]]--
-Input.Subscribe("MouseDown", function(sKey)
-    return doMouseDown(sKey)
-end)
+Input.Subscribe("MouseDown", doMouseDown)
 
 --[[ doMouseUp ]]--
 local function doMouseUp(sKey)
@@ -710,23 +708,20 @@ local function doMouseUp(sKey)
 end
 
 --[[ Input MouseUp ]]--
-Input.Subscribe("MouseUp", function(sKey)
-    return doMouseUp(sKey)
-end)
+Input.Subscribe("MouseUp", doMouseUp)
 
 ----------------------------------------------------------------------
 -- Keyboard Events
 ----------------------------------------------------------------------
 --[[ Input KeyDown ]]--
-Input.Subscribe("KeyDown", function(sKey)
-    if not oTargetUI or oTargetUI:IsValid() then return end
-    if not oTargetUI:IsKeyboardInputEnabled() or not getKeyInfo(sKey) then return end
-
-    return oTargetUI:IsKeyboardEventsEnabled()
+Input.Subscribe("KeyDown", function(_)
+    if oTargetUI and oTargetUI:IsValid() then
+        return oTargetUI:IsKeyboardEventsEnabled()
+    end
 end)
 
 --[[ Input KeyPress ]]--
-Input.Subscribe("KeyPress", function(sKey)
+local function doKeyPress(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
     -- Mouse button alias check
@@ -735,10 +730,13 @@ Input.Subscribe("KeyPress", function(sKey)
         doMouseDown(sMBAlias)
     end
 
+    -- Check if the WebUI3d2d can receive keyboard input, if a valid key is found, etc..
     if not oTargetUI:IsKeyboardInputEnabled() then return end
 
     local iKeyCode, iASCIICode, bASCIICharOnly = getKeyInfo(sKey)
-    if not iKeyCode then return end
+    if not iKeyCode then
+        return oTargetUI:IsKeyboardEventsEnabled()
+    end
 
     local iWebUIModifiers = getWebUIModifiers()
 
@@ -751,13 +749,16 @@ Input.Subscribe("KeyPress", function(sKey)
         oTargetUI:SendKeyEvent(WebUIKeyType.Char, iASCIICode, iWebUIModifiers)
     end
 
+    -- Update last activity
     oTargetUI.last_activity = Client.GetTime()
 
     return oTargetUI:IsKeyboardEventsEnabled()
-end)
+end
+
+Input.Subscribe("KeyPress", doKeyPress)
 
 --[[ Input KeyUp ]]--
-Input.Subscribe("KeyUp", function(sKey)
+local function doKeyRelease(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
     -- Mouse button alias check
@@ -766,28 +767,38 @@ Input.Subscribe("KeyUp", function(sKey)
         doMouseUp(sMBAlias)
     end
 
+    -- Check if the WebUI3d2d can receive keyboard input, if a valid key is found, etc..
     if not oTargetUI:IsKeyboardInputEnabled() then return end
 
     local iKeyCode, _, bASCIICharOnly = getKeyInfo(sKey)
     if not iKeyCode or not bASCIICharOnly then return end
 
     oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, getWebUIModifiers())
+
     oTargetUI.down_keys[iKeyCode] = nil
     oTargetUI.last_activity = Client.GetTime()
-end)
+end
+
+Input.Subscribe("KeyUp", doKeyRelease)
 
 --[[ Input MouseScroll ]]--
-Input.Subscribe("MouseScroll", function(_, _, iDelta)
+local function doMouseScroll(_, _, iDelta)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
     local iWHMax = mathMax(oTargetUI.width, oTargetUI.height)
-    local iScroll = (iDelta * mathFloor(iWHMax * 0.1))
 
-    oTargetUI:SendMouseWheelEvent(oTargetUI.cursor_x, oTargetUI.cursor_y, 0, iScroll)
+    oTargetUI:SendMouseWheelEvent(
+        oTargetUI.cursor_x,
+        oTargetUI.cursor_y,0,
+        (iDelta * mathFloor(iWHMax * 0.1))
+    )
+
     oTargetUI.last_activity = Client.GetTime()
 
     return oTargetUI:IsMouseEventsEnabled()
-end)
+end
+
+Input.Subscribe("MouseScroll", doMouseScroll)
 
 ----------------------------------------------------------------------
 -- WebUI3d2d class and methods
