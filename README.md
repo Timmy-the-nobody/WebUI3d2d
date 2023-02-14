@@ -27,7 +27,7 @@ Your PRs are welcome!
   - Mouse move events are sent to the UI
   - LMB/RMB/MMB press and release events are sent to the UI
   - Support simple and multiple (double and triple) clicks
-  - Prevent inputs sent to the UI from firing key events not related to a targeted `WebUI3d2d`
+  - Prevent inputs sent to the UI from firing key events not related to a targeted `WebUI3d2d` (can be disabled if needed)
 
 #### 🔠 Key input support
   - Seamless input of characters in text fields
@@ -35,7 +35,7 @@ Your PRs are welcome!
   - AZERTY keys support
   - Supports CTRL/Alt/Shift/... CEF key modifiers
   - Uppercase support with Caps lock and Shift modifiers (for A to Z letters)
-  - Prevent inputs sent to the UI from firing key events not related to a targeted `WebUI3d2d`
+  - Prevent inputs sent to the UI from firing key events not related to a targeted `WebUI3d2d` (can be disabled if needed)
 
 #### 📜 Scroll support
   - Mouse scroll wheel up/down
