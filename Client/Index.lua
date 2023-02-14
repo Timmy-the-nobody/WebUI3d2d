@@ -681,9 +681,7 @@ local function doMouseDown(sKey)
     oTargetUI.down_mouse_buttons[sKey] = true
     oTargetUI.last_activity = iTime
 
-    if oTargetUI:IsMouseEventsBlocked() then
-        return false
-    end
+    return oTargetUI:IsMouseEventsEnabled()
 end
 
 --[[ Input MouseDown ]]--
@@ -708,9 +706,7 @@ local function doMouseUp(sKey)
     oTargetUI.down_mouse_buttons[sKey] = nil
     oTargetUI.last_activity = Client.GetTime()
 
-    if oTargetUI:IsMouseEventsBlocked() then
-        return false
-    end
+    return oTargetUI:IsMouseEventsEnabled()
 end
 
 --[[ Input MouseUp ]]--
@@ -724,11 +720,9 @@ end)
 --[[ Input KeyDown ]]--
 Input.Subscribe("KeyDown", function(sKey)
     if not oTargetUI or oTargetUI:IsValid() then return end
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
+    if not oTargetUI:IsKeyboardInputEnabled() or not getKeyInfo(sKey) then return end
 
-    if getKeyInfo(sKey) and oTargetUI:IsKeyboardEventsBlocked() then
-        return false
-    end
+    return oTargetUI:IsKeyboardEventsEnabled()
 end)
 
 --[[ Input KeyPress ]]--
@@ -736,8 +730,9 @@ Input.Subscribe("KeyPress", function(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
     -- Mouse button alias check
-    if oTargetUI.mouse_aliases[sKey] then
-        doMouseDown(oTargetUI.mouse_aliases[sKey])
+    local sMBAlias = oTargetUI:GetMouseAliasKey(sKey)
+    if sMBAlias then
+        doMouseDown(sMBAlias)
     end
 
     if not oTargetUI:IsKeyboardInputEnabled() then return end
@@ -758,9 +753,7 @@ Input.Subscribe("KeyPress", function(sKey)
 
     oTargetUI.last_activity = Client.GetTime()
 
-    if oTargetUI:IsKeyboardEventsBlocked() then
-        return false
-    end
+    return oTargetUI:IsKeyboardEventsEnabled()
 end)
 
 --[[ Input KeyUp ]]--
@@ -768,8 +761,9 @@ Input.Subscribe("KeyUp", function(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
     -- Mouse button alias check
-    if oTargetUI.mouse_aliases[sKey] then
-        doMouseUp(oTargetUI.mouse_aliases[sKey])
+    local sMBAlias = oTargetUI:GetMouseAliasKey(sKey)
+    if sMBAlias then
+        doMouseUp(sMBAlias)
     end
 
     if not oTargetUI:IsKeyboardInputEnabled() then return end
@@ -792,9 +786,7 @@ Input.Subscribe("MouseScroll", function(_, _, iDelta)
     oTargetUI:SendMouseWheelEvent(oTargetUI.cursor_x, oTargetUI.cursor_y, 0, iScroll)
     oTargetUI.last_activity = Client.GetTime()
 
-    if oTargetUI:IsMouseEventsBlocked() then
-        return false
-    end
+    return oTargetUI:IsMouseEventsEnabled()
 end)
 
 ----------------------------------------------------------------------
@@ -850,9 +842,11 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.cursor_decal_enabled = true
     self.cursor_trace_control = true
     self.camera_trace_control = true
-    self.mouse_events_blocked = true
-    self.keyboard_events_blocked = true
     self.keyboard_input_enabled = true
+
+    self.mouse_events_enabled = false
+    self.keyboard_events_enabled = false
+
     self.material_index = (iMatIndex or -1)
     self.reload_on_fail = true
     self.mouse_aliases = {}
@@ -1030,43 +1024,43 @@ function WebUI3d2d:IsCameraTraceControlEnabled()
 end
 
 --[[
-    WebUI3d2d:SetKeyboardEventsBlocked
+    WebUI3d2d:SetKeyboardEventsEnabled
         desc: Enable or disable the keyboard events
         args:
-            bBlocked: Should the WebUI3d2d block keyboard events or not (boolean)
+            bEnabled: Should the WebUI3d2d allow keyboard events or not (boolean)
 ]]
-function WebUI3d2d:SetKeyboardEventsBlocked(bBlocked)
-    self.keyboard_events_blocked = (bBlocked and true or false)
+function WebUI3d2d:SetKeyboardEventsEnabled(bEnabled)
+    self.keyboard_events_enabled = (bEnabled and true or false)
 end
 
 --[[
-    WebUI3d2d:IsKeyboardEventsBlocked
+    WebUI3d2d:IsKeyboardEventsEnabled
         desc: Returns wether the WebUI3d2d block keyboard events or not
         returns:
-            Is keyboard events blocked? (boolean)
+            Is keyboard events allowed? (boolean)
 ]]--
-function WebUI3d2d:IsKeyboardEventsBlocked()
-    return self.keyboard_events_blocked
+function WebUI3d2d:IsKeyboardEventsEnabled()
+    return self.keyboard_events_enabled
 end
 
 --[[
-    WebUI3d2d:SetMouseEventsBlocked
+    WebUI3d2d:SetMouseEventsEnabled
         desc: Enable or disable the mouse events
         args:
-            bBlocked: Should the WebUI3d2d block mouse events or not (boolean)
+            bEnabled: Should the WebUI3d2d allow mouse events or not (boolean)
 ]]--
-function WebUI3d2d:SetMouseEventsBlocked(bBlocked)
-    self.mouse_events_blocked = (bBlocked and true or false)
+function WebUI3d2d:SetMouseEventsEnabled(bEnabled)
+    self.mouse_events_enabled = (bEnabled and true or false)
 end
 
 --[[
-    WebUI3d2d:IsMouseEventsBlocked
-        desc: Returns wether the WebUI3d2d block mouse events or not
+    WebUI3d2d:IsMouseEventsEnabled
+        desc: Returns wether the WebUI3d2d allows mouse events or not
         returns:
-            Is mouse events blocked? (boolean)
+            Is mouse events allowed? (boolean)
 ]]--
-function WebUI3d2d:IsMouseEventsBlocked()
-    return self.mouse_events_blocked
+function WebUI3d2d:IsMouseEventsEnabled()
+    return self.mouse_events_enabled
 end
 
 --[[
@@ -1108,6 +1102,16 @@ end
 ]]--
 function WebUI3d2d:RemoveMouseAliasKey(sKey)
     self.mouse_aliases[sKey] = nil
+end
+
+--[[
+    WebUI3d2d:GetAllMouseAliasKeys
+        desc: Get the mouse aliases
+        returns:
+            The mouse aliases (table)
+]]--
+function WebUI3d2d:GetAllMouseAliasKeys()
+    return self.mouse_aliases
 end
 
 --[[
