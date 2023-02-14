@@ -649,7 +649,7 @@ Input.Subscribe("KeyDown", function(sKey)
     if not oTargetUI or oTargetUI:IsValid() then return end
     if not oTargetUI:IsKeyboardInputEnabled() then return end
 
-    if getKeyInfo(sKey) then
+    if getKeyInfo(sKey) and oTargetUI:IsKeyboardEventsBlocked() then
         return false
     end
 end)
@@ -675,7 +675,9 @@ Input.Subscribe("KeyPress", function(sKey)
 
     oTargetUI.last_activity = Client.GetTime()
 
-    return false
+    if oTargetUI:IsKeyboardEventsBlocked() then
+        return false
+    end
 end)
 
 --[[ Input KeyUp ]]--
@@ -701,7 +703,9 @@ Input.Subscribe("MouseScroll", function(_, _, iDelta)
     oTargetUI:SendMouseWheelEvent(oTargetUI.cursor_x, oTargetUI.cursor_y, 0, iScroll)
     oTargetUI.last_activity = Client.GetTime()
 
-    return false
+    if oTargetUI:IsMouseEventsBlocked() then
+        return false
+    end
 end)
 
 --[[ Input MouseDown ]]--
@@ -738,7 +742,9 @@ Input.Subscribe("MouseDown", function(sKey)
     oTargetUI.down_mouse_buttons[sKey] = true
     oTargetUI.last_activity = iTime
 
-    return false
+    if oTargetUI:IsMouseEventsBlocked() then
+        return false
+    end
 end)
 
 --[[ Input MouseUp ]]--
@@ -758,7 +764,9 @@ Input.Subscribe("MouseUp", function(sKey)
     oTargetUI.down_mouse_buttons[sKey] = nil
     oTargetUI.last_activity = Client.GetTime()
 
-    return false
+    if oTargetUI:IsMouseEventsBlocked() then
+        return false
+    end
 end)
 
 ----------------------------------------------------------------------
@@ -814,9 +822,12 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.cursor_decal_enabled = true
     self.cursor_trace_control = true
     self.camera_trace_control = true
+    self.mouse_events_blocked = true
+    self.keyboard_events_blocked = true
     self.keyboard_input = true
     self.material_index = (iMatIndex or -1)
     self.reload_on_fail = true
+
     self.cursor_x = 0
     self.cursor_y = 0
     self.down_keys = {}
@@ -987,6 +998,46 @@ end
 ]]--
 function WebUI3d2d:IsCameraTraceControlEnabled()
     return self.camera_trace_control
+end
+
+--[[
+    WebUI3d2d:SetKeyboardEventsBlocked
+        desc: Enable or disable the keyboard events
+        args:
+            bBlocked: Should the WebUI3d2d block keyboard events or not (boolean)
+]]
+function WebUI3d2d:SetKeyboardEventsBlocked(bBlocked)
+    self.keyboard_events_blocked = (bBlocked and true or false)
+end
+
+--[[
+    WebUI3d2d:IsKeyboardEventsBlocked
+        desc: Returns wether the WebUI3d2d block keyboard events or not
+        returns:
+            Is keyboard events blocked? (boolean)
+]]--
+function WebUI3d2d:IsKeyboardEventsBlocked()
+    return self.keyboard_events_blocked
+end
+
+--[[
+    WebUI3d2d:SetMouseEventsBlocked
+        desc: Enable or disable the mouse events
+        args:
+            bBlocked: Should the WebUI3d2d block mouse events or not (boolean)
+]]--
+function WebUI3d2d:SetMouseEventsBlocked(bBlocked)
+    self.mouse_events_blocked = (bBlocked and true or false)
+end
+
+--[[
+    WebUI3d2d:IsMouseEventsBlocked
+        desc: Returns wether the WebUI3d2d block mouse events or not
+        returns:
+            Is mouse events blocked? (boolean)
+]]--
+function WebUI3d2d:IsMouseEventsBlocked()
+    return self.mouse_events_blocked
 end
 
 --[[
