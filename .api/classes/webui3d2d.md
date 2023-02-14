@@ -373,7 +373,7 @@ my_webui:AddMouseAliasKey(Input.GetMappedKeys("Interact")[1], "LeftMouseButton")
 #### `RemoveMouseAliasKey`
 > Remove a key from the mouse aliases
 ```lua
-my_webui:RemoveMouseAliasKey(sKeyName)
+my_webui:RemoveMouseAliasKey(sKey)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
