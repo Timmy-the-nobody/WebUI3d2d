@@ -394,7 +394,7 @@ local ret = my_webui:GetAllMouseAliasKeys()
 >
 > Returns [string]
 ```lua
-local ret = my_webui:GetMouseAliasKey()
+local ret = my_webui:GetMouseAliasKey("E")
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
