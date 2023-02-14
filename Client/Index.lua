@@ -1035,7 +1035,7 @@ end
 
 --[[
     WebUI3d2d:IsKeyboardEventsEnabled
-        desc: Returns wether the WebUI3d2d block keyboard events or not
+        desc: Returns wether the WebUI3d2d allow keyboard events or not
         returns:
             Is keyboard events allowed? (boolean)
 ]]--
@@ -1087,10 +1087,10 @@ end
     WebUI3d2d:AddMouseAliasKey
         desc: Add a key to the mouse aliases
         args:
-            sMouseButton: The mouse button to be aliased (string)
             sKey: The key to be aliased (string)
+            sMouseButton: The mouse button to be aliased (string)
 ]]--
-function WebUI3d2d:AddMouseAliasKey(sMouseButton, sKey)
+function WebUI3d2d:AddMouseAliasKey(sKey, sMouseButton)
     self.mouse_aliases[sKey] = sMouseButton
 end
 
@@ -1106,7 +1106,7 @@ end
 
 --[[
     WebUI3d2d:GetAllMouseAliasKeys
-        desc: Get the mouse aliases
+        desc: Get the mouse aliases table
         returns:
             The mouse aliases (table)
 ]]--
