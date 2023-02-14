@@ -5,7 +5,7 @@
     # contributors
     author =                "Timmy"
     # version
-    version =               "1.2.1"
+    version =               "1.3.1"
 
 # script configurations
 [script]
@@ -16,10 +16,9 @@
     # whether to load all level entities on client - only enable it if your package needs to use level static meshes entities
     load_level_entities =   false
     # the game version (major.minor) at the time this package was created, for granting compatibility between breaking changes
-    compatibility_version = "1.29"
+    compatibility_version = "1.35"
     # packages requirements
     packages_requirements = [
-                            "luarun",
     ]
     # asset packs requirements
     assets_requirements = [
