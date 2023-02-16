@@ -1337,7 +1337,7 @@ end
         desc: Internal function to recover the correct inputs and WebUIs visibility when the camera is focused
 ]]--
 local function recoverFocusInputs()
-    if not localPlayer():GetCameraFocusedWebUI3d2d() then return end
+    if not localPlayer() or not localPlayer():GetCameraFocusedWebUI3d2d() then return end
 
     Input.SetMouseEnabled(true)
     Input.SetInputEnabled(false)
