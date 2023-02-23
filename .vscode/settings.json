@@ -40,6 +40,8 @@
         "assign-type-mismatch",
         "duplicate-set-field",
         "missing-parameter",
-        "cast-local-type"
+        "cast-local-type",
+        "undefined-doc-name",
+        "undefined-doc-class"
     ]
 }

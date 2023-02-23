@@ -806,6 +806,12 @@ Input.Subscribe("MouseScroll", doMouseScroll)
 ----------------------------------------------------------------------
 -- WebUI3d2d class and methods
 ----------------------------------------------------------------------
+
+---`🔸 Client`<br>
+---`WebUI3d2d` is a class that represents a WebUI3d2d instance
+---@class WebUI3d2d : WebUI
+---@overload fun(sPath: string, bTransparent: boolean, iW: integer, iH: integer, bAttach3DSound: boolean, sMesh: string, iMatIndex: integer): WebUI3d2d
+---
 WebUI3d2d = WebUI.Inherit("WebUI3d2d")
 
 --[[
@@ -905,16 +911,19 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     end
 end
 
---[[ WebUI3d2d:ReloadPage ]]--
+---`🔸 Client`<br>
+---<h2>Internal method, only use this if you know what you're doing.</h2>
+---Reload the WebUI3d2d page
+---
 function WebUI3d2d:ReloadPage()
     -- TODO: Uncoment when `webui:GetPath` will be added
     -- self:LoadURL(self:GetPath())
 end
 
---[[
-    WebUI3d2d:OnFail
-        desc: Called when the WebUI3d2d fails to load
-]]--
+---`🔸 Client`<br>
+---<h2>Internal method, only use this if you know what you're doing.</h2>
+---Called when the WebUI3d2d fails to load
+---
 function WebUI3d2d:OnFail()
     self:MakeNoSignal()
 
@@ -925,10 +934,10 @@ function WebUI3d2d:OnFail()
     end
 end
 
---[[
-    WebUI3d2d:OnReady
-        desc: Called when the WebUI3d2d is ready to be used
-]]--
+---`🔸 Client`<br>
+---<h2>Internal method, only use this if you know what you're doing.</h2>
+---Called when the WebUI3d2d is ready to be used
+---
 function WebUI3d2d:OnReady()
     self:SetFreeze(false)
     self.mesh:SetMaterialFromWebUI(self, self.material_index)
@@ -936,10 +945,10 @@ function WebUI3d2d:OnReady()
     self.ready = true
 end
 
---[[
-    WebUI3d2d:OnDestroy
-        desc: Called when the WebUI3d2d is destroyed
-]]--
+---`🔸 Client`<br>
+---<h2>Internal method, only use this if you know what you're doing.</h2>
+---Called when the WebUI3d2d is destroyed
+---
 function WebUI3d2d:OnDestroy()
     -- Untarget the WebUI3d2d if it's the current target (will also remove the cursor)
     if oTargetUI and (oTargetUI == self) then
@@ -958,7 +967,10 @@ function WebUI3d2d:OnDestroy()
     if self.cursor_decal and self.cursor_decal:IsValid() then self.cursor_decal:Destroy() end
 end
 
---[[ WebUI3d2d:LoadURL ]]--
+---`🔸 Client`<br>
+---Makes the WebUI3d2d load the given URL
+---@param sURL string @The URL to load
+---
 function WebUI3d2d:LoadURL(sURL)
     if not (isLocalURL(sURL) or isRemoteURL(sURL)) then
         self:MakeNoSignal()
@@ -969,203 +981,163 @@ function WebUI3d2d:LoadURL(sURL)
     self.mesh:SetMaterialFromWebUI(self, self.material_index)
 end
 
---[[
-    WebUI3d2d:MakeNoSignal
-        desc: Set the WebUI3d2d to a "no signal" state
-]]--
+---`🔸 Client`<br>
+---Sets the WebUI3d2d to a "no signal" state
+---
 function WebUI3d2d:MakeNoSignal()
     self.mesh:SetMaterial("nanos-world::M_Noise", self.material_index)
 end
 
---[[
-    WebUI3d2d:GetStaticMesh
-        desc: Get the WebUI3d2d parent mesh
-        returns:
-            The WebUI3d2d parent mesh (StaticMesh)
-]]--
+---`🔸 Client`<br>
+---Returns the static mesh on which the WebUI3d2d is painted
+---@return StaticMesh @The parent mesh
+---
 function WebUI3d2d:GetStaticMesh()
     return self.mesh
 end
 
---[[
-    WebUI3d2d:GetAttachedSound
-        desc: Get the 3D attached sound
-        returns:
-            The WebUI3d2d attached sound (Sound)
-]]--
+---`🔸 Client`<br>
+---Returns the 3D attached sound
+---@return Sound|nil @The Sound instance
+---
 function WebUI3d2d:GetAttachedSound()
     return self.sound
 end
 
---[[
-    WebUI3d2d:SetCursorTraceControl
-        desc: Enable or disable the mouse trace control
-        args:
-            bEnabled: Should the mouse trace control be enabled or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Enable or disable the mouse trace control
+---@param bEnabled boolean @Should the mouse trace control be enabled or not
+---
 function WebUI3d2d:SetCursorTraceControl(bEnabled)
     self.cursor_trace_control = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsCursorTraceControlEnabled
-        desc: Returns wether the mouse trace control is enabled or not
-        returns:
-            Is mouse trace control enabled? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the mouse trace control is enabled or not
+---@return boolean @Is mouse trace control enabled?
+---
 function WebUI3d2d:IsCursorTraceControlEnabled()
     return self.cursor_trace_control
 end
 
---[[
-    WebUI3d2d:SetCameraTraceControl
-        desc: Enable or disable the camera trace control
-        args:
-            bEnabled: Should the camera trace control be enabled or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Enable or disable the camera trace control
+---@param bEnabled boolean @Should the camera trace control be enabled or not
+---
 function WebUI3d2d:SetCameraTraceControl(bEnabled)
     self.camera_trace_control = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsCameraTraceControlEnabled
-        desc: Returns wether the camera trace control is enabled or not
-        returns:
-            Is camera trace control enabled? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the camera trace control is enabled or not
+---@return boolean @Is camera trace control enabled?
+---
 function WebUI3d2d:IsCameraTraceControlEnabled()
     return self.camera_trace_control
 end
 
---[[
-    WebUI3d2d:SetKeyboardEventsEnabled
-        desc: Enable or disable the keyboard events
-        args:
-            bEnabled: Should the WebUI3d2d allow keyboard events or not (boolean)
-]]
+---`🔸 Client`<br>
+---Enable or disable the keyboard events
+---@param bEnabled boolean @Should the WebUI3d2d allow keyboard events or not
+---
 function WebUI3d2d:SetKeyboardEventsEnabled(bEnabled)
     self.keyboard_events_enabled = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsKeyboardEventsEnabled
-        desc: Returns wether the WebUI3d2d allow keyboard events or not
-        returns:
-            Is keyboard events allowed? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d allows keyboard events or not
+---@return boolean @Is keyboard events allowed?
+---
 function WebUI3d2d:IsKeyboardEventsEnabled()
     return self.keyboard_events_enabled
 end
 
---[[
-    WebUI3d2d:SetMouseEventsEnabled
-        desc: Enable or disable the mouse events
-        args:
-            bEnabled: Should the WebUI3d2d allow mouse events or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Enable or disable the mouse events
+---@param bEnabled boolean @Should the WebUI3d2d allow mouse events or not
+---
 function WebUI3d2d:SetMouseEventsEnabled(bEnabled)
     self.mouse_events_enabled = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsMouseEventsEnabled
-        desc: Returns wether the WebUI3d2d allows mouse events or not
-        returns:
-            Is mouse events allowed? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d allows mouse events or not
+---@return boolean @Is mouse events allowed?
+---
 function WebUI3d2d:IsMouseEventsEnabled()
     return self.mouse_events_enabled
 end
 
---[[
-    WebUI3d2d:SetKeyboardInputEnabled
-        desc: Enable or disable the keyboard input
-        args:
-            bEnabled: Should the WebUI3d2d accept keyboard input or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Enable or disable the keyboard input
+---@param bEnabled boolean @Should the WebUI3d2d accept keyboard input or not
+---
 function WebUI3d2d:SetKeyboardInputEnabled(bEnabled)
     self.keyboard_input_enabled = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsKeyboardInputEnabled
-        desc: Returns wether the WebUI3d2d accept keyboard input or not
-        returns:
-            Is the WebUI3d2d accepting keyboard input? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d accepts keyboard input or not
+---@return boolean @Is keyboard input allowed?
+---
 function WebUI3d2d:IsKeyboardInputEnabled()
     return self.keyboard_input_enabled
 end
 
---[[
-    WebUI3d2d:AddMouseAliasKey
-        desc: Add a key to the mouse aliases
-        args:
-            sKey: The key to be aliased (string)
-            sMouseButton: The mouse button to be aliased (string)
-]]--
+---`🔸 Client`<br>
+---Adds a key to the mouse aliases
+---@param sKey string @The key to be aliased
+---@param sMouseButton string @The mouse button to be aliased
+---
 function WebUI3d2d:AddMouseAliasKey(sKey, sMouseButton)
     self.mouse_aliases[sKey] = sMouseButton
 end
 
---[[
-    WebUI3d2d:RemoveMouseAliasKey
-        desc: Remove a key from the mouse aliases
-        args:
-            sKey: The key to be removed (string)
-]]--
+---`🔸 Client`<br>
+---Removes a key from the mouse aliases
+---@param sKey string @The key to be removed
+---
 function WebUI3d2d:RemoveMouseAliasKey(sKey)
     self.mouse_aliases[sKey] = nil
 end
 
---[[
-    WebUI3d2d:GetAllMouseAliasKeys
-        desc: Get the mouse aliases table
-        returns:
-            The mouse aliases (table)
-]]--
+---`🔸 Client`<br>
+---Returns the mouse aliases table
+---@return table<string, string> @The mouse aliases
+---
 function WebUI3d2d:GetAllMouseAliasKeys()
     return self.mouse_aliases
 end
 
---[[
-    WebUI3d2d:GetMouseAliasKey
-        desc: Get the mouse button aliased to a key
-        args:
-            sKey: The key to be checked (string)
-        returns:
-            The mouse button aliased to the key (string)
-]]--
+---`🔸 Client`<br>
+---Returns the mouse button aliased to a key
+---@param sKey string @The key to be checked
+---@return string @The mouse button aliased to the key
+---
 function WebUI3d2d:GetMouseAliasKey(sKey)
     return self.mouse_aliases[sKey]
 end
 
---[[
-    WebUI3d2d:SetReloadOnFail
-        desc: Enable or disable the reload on fail
-        args:
-            bReloadOnFail: Should the WebUI3d2d reload on fail or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Enable or disable the reload on fail
+---@param bReloadOnFail boolean @Should the WebUI3d2d reload on fail or not
+---
 function WebUI3d2d:SetReloadOnFail(bReloadOnFail)
     self.reload_on_fail = bReloadOnFail
 end
 
---[[
-    WebUI3d2d:ShouldReloadOnFail
-        desc: Returns wether the WebUI3d2d reload on fail or not
-        returns:
-            Should the WebUI3d2d reload on fail or not (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d reload on fail or not
+---@return boolean @Should the WebUI3d2d reload on fail or not
+---
 function WebUI3d2d:ShouldReloadOnFail()
     return self.reload_on_fail
 end
 
---[[
-    WebUI3d2d:IsInteractable
-        desc: Returns wether the WebUI3d2d is interactable or not
-        returns:
-            Is the WebUI3d2d interactable? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d is interactable or not
+---@return boolean @Is the WebUI3d2d interactable?
+---
 function WebUI3d2d:IsInteractable()
     if Input.IsMouseEnabled() then
         return self:IsCursorTraceControlEnabled()
@@ -1177,53 +1149,44 @@ end
 ----------------------------------------------------------------------
 -- Cursor related
 ----------------------------------------------------------------------
---[[
-    WebUI3d2d:SetCursorDecalEnabled
-        desc: Enable or disable the 3D cursor decal
-        args:
-            bEnabled: Should the 3D cursor decal be enabled or not (boolean)
-]]--
+
+---`🔸 Client`<br>
+---Enable or disable the 3D cursor decal
+---@param bEnabled boolean @Should the 3D cursor decal be enabled or not
+---
 function WebUI3d2d:SetCursorDecalEnabled(bEnabled)
     self.cursor_decal_enabled = (bEnabled and true or false)
 end
 
---[[
-    WebUI3d2d:IsCursorDecalEnabled
-        desc: Returns wether the 3D cursor decal is enabled or not
-        returns:
-            Is the 3D cursor decal enabled? (boolean)
-]]--
+---`🔸 Client`<br>
+---Returns wether the 3D cursor decal is enabled or not
+---@return boolean @Is the 3D cursor decal enabled?
+---
 function WebUI3d2d:IsCursorDecalEnabled()
     return self.cursor_decal_enabled
 end
 
---[[
-    WebUI3d2d:GetCursorDecal
-        desc: Returns the cursor decal
-        return:
-            The 3D cursor decal (Decal)
-]]--
+---`🔸 Client`<br>
+---Returns the 3D cursor decal
+---@return Decal @The 3D cursor decal
+---
 function WebUI3d2d:GetCursorDecal()
     return self.cursor_decal
 end
 
---[[
-    WebUI3d2d:SetCursorSize
-        desc: Set the cursor decal size
-        args:
-            fSize: The new size of the cursor decal (number)
-]]--
+---`🔸 Client`<br>
+---Sets the 3D cursor decal size
+---@param fSize number @The new size of the 3D cursor decal
+---
 function WebUI3d2d:SetCursorSize(fSize)
     if (type(fSize) ~= "number") or (fSize <= 0) then return end
     self.cursor_size = fSize
 end
 
---[[
-    WebUI3d2d:GetCursorSize
-        desc: Returns the cursor decal size
-        return:
-            The size of the cursor decal (number)
-]]--
+---`🔸 Client`<br>
+---Returns the 3D cursor decal size
+---@return number @The size of the 3D cursor decal
+---
 function WebUI3d2d:GetCursorSize()
     return self.cursor_size or fDefaultCursorSize
 end
@@ -1231,12 +1194,11 @@ end
 ----------------------------------------------------------------------
 -- Camera focus
 ----------------------------------------------------------------------
---[[
-    Player:GetCameraFocusedWebUI3d2d
-        desc: Get the current focused WebUI3d2d
-        return:
-            Camera focused WebUI3d2d object (WebUI3d2d)
-]]--
+
+---`🔸 Client`<br>
+---Returns the WebUI3d2d that is currently focused by the camera
+---@return WebUI3d2d|nil @The WebUI3d2d that is currently focused by the camera
+---
 function Player:GetCameraFocusedWebUI3d2d()
     local oWebUI = self:GetValue("webui3d2d_cview_focused_instance")
     if oWebUI and oWebUI:IsValid() then
@@ -1244,10 +1206,9 @@ function Player:GetCameraFocusedWebUI3d2d()
     end
 end
 
---[[
-    Player:UnfocusWebUI3d2dCamera
-        desc: Unfocus the WebUI3d2d camera
-]]--
+---`🔸 Client`<br>
+---Unfocus the WebUI3d2d camera
+---
 function Player:UnfocusWebUI3d2dCamera()
     if (self ~= localPlayer()) or not self:GetCameraFocusedWebUI3d2d() then return end
 
@@ -1278,15 +1239,13 @@ function Player:UnfocusWebUI3d2dCamera()
     Input.SetInputEnabled(true)
 end
 
---[[
-    Player:FocusWebUI3d2dCamera
-        desc: Focus the camera on a WebUI3d2d
-        args:
-            oWebUI: The WebUI3d2d to focus the camera on (WebUI3d2d)
-            fCameraDist: The distance from the camera to the WebUI3d2d (float)
-            fClipPlaneDist: The distance from the camera to the clip plane (float)
-            iBlendTime: The time it takes to blend to the new camera position (integer)
-]]--
+---`🔸 Client`<br>
+---Focus the camera on a WebUI3d2d
+---@param oWebUI WebUI3d2d @The WebUI3d2d to focus the camera on
+---@param fCameraDist number @The distance from the camera to the WebUI3d2d
+---@param fClipPlaneDist number @The distance from the camera to the clip plane
+---@param iBlendTime number @The time it takes to blend to the new camera position
+---
 function Player:FocusWebUI3d2dCamera(oWebUI, fCameraDist, fClipPlaneDist, iBlendTime)
     if (self ~= localPlayer()) then return end
     if (getmetatable(oWebUI) ~= WebUI3d2d) then return end
