@@ -453,12 +453,11 @@ end
 ----------------------------------------------------------------------
 -- WebUI3d2d targeting
 ----------------------------------------------------------------------
---[[
-    Player:GetTargetedWebUI3d2d
-        desc: Get the current targeted WebUI3d2d
-        return:
-            WebUI3d2d object (WebUI3d2d)
-]]--
+
+---`🔸 Client`<br>
+---Get the current targeted WebUI3d2d
+---@return WebUI3d2d|nil @WebUI3d2d instance
+---
 function Player:GetTargetedWebUI3d2d()
     if oTargetUI and oTargetUI:IsValid() then
         return oTargetUI
