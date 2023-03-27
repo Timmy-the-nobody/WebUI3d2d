@@ -351,9 +351,9 @@ local function updateWebUIsVisibility()
         if (v:GetClass() == WebUI3d2d) then goto continue end
 
         if oTargetUI then
-            if (v:GetVisibility() ~= WebUIVisibility.Hidden) then
+            if (v:GetVisibility() ~= WidgetVisibility.Hidden) then
                 v:SetValue("webui3d2d_prev_visibility", v:GetVisibility(), false)
-                v:SetVisibility(WebUIVisibility.VisibleNotHitTestable)
+                v:SetVisibility(WidgetVisibility.VisibleNotHitTestable)
             end
         else
             local iPrevVisibility = v:GetValue("webui3d2d_prev_visibility")
@@ -850,7 +850,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     end
 
     -- WebUI3d2d instance and listeners
-    self.Super:Constructor("", sPath, WebUIVisibility.Hidden, bTransparent, false, iW, iH)
+    self.Super:Constructor("", sPath, WidgetVisibility.Hidden, bTransparent, false, iW, iH)
     self:Subscribe("Fail", self.OnFail)
     self:Subscribe("Ready", self.OnReady)
     self:Subscribe("Destroy", self.OnDestroy)
