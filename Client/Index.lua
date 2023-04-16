@@ -29,7 +29,7 @@ local iMinUISize = 240                                                          
 local iMaxUISize = 8192                                                                     -- Maximum size in pixels of a WebUI3d2d page
 local fDefaultCursorSize = 1.2                                                              -- Default cursor size (if not changed by `SetCursorSize`)
 local iCursorHideDelay = 3000                                                               -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
-local sCursorTexture = "package://"..Package.GetPath().."/Client/resources/cursor.png"      -- Path to the cursor texture
+local sCursorTexture = "package://"..Package.GetName().."/Client/resources/cursor.png"      -- Path to the cursor texture
 
 -- Static (performance)
 local iTargetTickRate = 12                                                                  -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
