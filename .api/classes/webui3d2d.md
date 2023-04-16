@@ -39,7 +39,7 @@ The WebUI3d2d class allows you to create a dynamic 3D web browser with which you
 #### Spawning a simple WebUI3d2d
 ```lua
 local my_webui = WebUI3d2d(
-    "file://"..Package.GetPath().."/Client/my_cool_ui/index.html",      -- Path
+    "file://"..Package.GetName().."/Client/my_cool_ui/index.html",      -- Path
     false,                                                              -- Is transparent?
     1920,                                                               -- UI width
     1080,                                                               -- UI height

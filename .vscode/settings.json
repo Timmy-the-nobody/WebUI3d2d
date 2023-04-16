@@ -31,7 +31,8 @@
         "NanosUtils",
         "Vector2D",
         "WebUIVisibility",
-        "Quat"
+        "Quat",
+        "WidgetVisibility"
     ],
     "Lua.diagnostics.disable": [
         "undefined-field",

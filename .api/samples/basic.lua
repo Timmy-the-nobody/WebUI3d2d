@@ -1,5 +1,5 @@
 local my_webui = WebUI3d2d(
-    "file://"..Package.GetPath().."/Client/my_cool_ui/index.html",      -- Path
+    "file://"..Package.GetName().."/Client/my_cool_ui/index.html",      -- Path
     false,                                                              -- Is transparent?
     1920,                                                               -- UI width
     1080,                                                               -- UI height
