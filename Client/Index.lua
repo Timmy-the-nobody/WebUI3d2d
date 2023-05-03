@@ -25,21 +25,21 @@ local iNextTargetLookup = 0
 local iNextFreezeHandle = 0
 
 -- Static (render)
-local iMinUISize = 240                                                                      -- Minimum size in pixels of a WebUI3d2d page
-local iMaxUISize = 8192                                                                     -- Maximum size in pixels of a WebUI3d2d page
-local fDefaultCursorSize = 1.2                                                              -- Default cursor size (if not changed by `SetCursorSize`)
-local iCursorHideDelay = 3000                                                               -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
-local sCursorTexture = "package://"..Package.GetName().."/Client/resources/cursor.png"      -- Path to the cursor texture
+local iMinUISize = 240                                                                          -- Minimum size in pixels of a WebUI3d2d page
+local iMaxUISize = 8192                                                                         -- Maximum size in pixels of a WebUI3d2d page
+local fDefaultCursorSize = 1.2                                                                  -- Default cursor size (if not changed by `SetCursorSize`)
+local iCursorHideDelay = 3000                                                                   -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
+local sCursorTexture = "package://"..Package.GetName().."/Client/resources/cursor.png"          -- Path to the cursor texture
 
--- Static (performance)
-local iTargetTickRate = 12                                                                  -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
-local iTargetIdleTickRate = 4                                                               -- Tick rate when no WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
-local fFreezeFromDist = 4                                                                   -- Distance from the targeted WebUI3d2d at which the UI will freeze ((width + height) * VALUE)
-local iFreezeCheckDelay = 1000                                                              -- Delay between freeze checks (don't set it too low or it will cause performance issues)
+-- Static (performance) 
+local iTargetTickRate = 12                                                                      -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
+local iTargetIdleTickRate = 4                                                                   -- Tick rate when no WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
+local fFreezeFromDist = 4                                                                       -- Distance from the targeted WebUI3d2d at which the UI will freeze ((width + height) * VALUE)
+local iFreezeCheckDelay = 1000                                                                  -- Delay between freeze checks (don't set it too low or it will cause performance issues)
 
 -- Local and remote URL regex
-local sLocalURLRegex = [[^file://]]                                                         -- Regex to match local URL
-local tValidRemoteURLStart = {"http://www.", "https://www.", "http://", "https://", "www."} -- List of valid remote URL start
+local sLocalURLPrefixRegex = [[^file://]]                                                       -- Regex to match local URL
+local tValidRemoteURLPrefix = {"http://www.", "https://www.", "http://", "https://", "www."}    -- List of valid remote URL start
 
 -- Static vars (internal)
 local iCollisionChannel = CollisionChannel.WorldStatic
@@ -276,11 +276,12 @@ end
 ----------------------------------------------------------------------
 -- Internal utils
 ----------------------------------------------------------------------
+
 --[[ isRemoteURL ]]--
 local function isRemoteURL(sURL)
     if type(sURL) ~= "string" then return end
 
-    for _, sStart in ipairs(tValidRemoteURLStart) do
+    for _, sStart in ipairs(tValidRemoteURLPrefix) do
         if sURL:find('^'..sStart) then
             return true
         end
@@ -289,7 +290,7 @@ end
 
 --[[ isLocalURL ]]--
 local function isLocalURL(sURL)
-    return (type(sURL) ~= "string") and (sURL:match(sLocalURLRegex) ~= nil)
+    return (type(sURL) ~= "string") and (sURL:match(sLocalURLPrefixRegex) ~= nil)
 end
 
 --[[
@@ -1323,7 +1324,7 @@ local tSMWrapperMethods = {
     "GetBounds",
     "GetLocation",
     "GetRotation",
-    "GetScale";
+    "GetScale",
     "RotateTo",
     "SetLifeSpan",
     "SetLocation",
