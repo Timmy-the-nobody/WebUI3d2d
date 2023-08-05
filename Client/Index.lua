@@ -810,7 +810,7 @@ Input.Subscribe("MouseScroll", doMouseScroll)
 ---`🔸 Client`<br>
 ---`WebUI3d2d` is a class that represents a WebUI3d2d instance
 ---@class WebUI3d2d : WebUI
----@overload fun(sPath: string, bTransparent: boolean, iW: integer, iH: integer, bAttach3DSound: boolean, sMesh: string, iMatIndex: integer): WebUI3d2d
+---@overload fun(sPath: string, bTransparent: boolean, iW: integer, iH: integer, tScale: Vector, bAttach3DSound: boolean, sMesh: string, iMatIndex: integer): WebUI3d2d
 ---
 WebUI3d2d = WebUI.Inherit("WebUI3d2d")
 
