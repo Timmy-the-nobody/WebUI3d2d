@@ -42,9 +42,6 @@ Your PRs are welcome!
   - Middle mouse button drag
   - Page up/down
 
-#### 🎥 Camera focus
-  - You can make the player camera focus a WebUI3d2d, and make navigation even easier
-
 #### 🔊 Attached 3D sound
   - If used, sounds emitted by the UI will play in the 3d space
 

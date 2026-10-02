@@ -144,21 +144,6 @@ local tSpecialKeys = {
 -- Debug
 ----------------------------------------------------------------------
 if bDebugCommands then
-    -- webui3d2d_focus
-    Console.RegisterCommand("webui3d2d_focus", function(iID)
-        local oWebUI = WebUI3d2d.GetByIndex(tonumber(iID) or 1)
-        if oWebUI and oWebUI:IsValid() then
-            localPlayer():FocusWebUI3d2dCamera(oWebUI)
-        end
-    end, "Focus camera on a WebUI3d2d", {"id"})
-
-    -- webui3d2d_unfocus
-    Console.RegisterCommand("webui3d2d_unfocus", function()
-        if localPlayer():GetCameraFocusedWebUI3d2d() then
-            localPlayer():UnfocusWebUI3d2dCamera()
-        end
-    end, "Unfocus camera from a WebUI3d2d")
-
     -- webui3d2d_spawn
     Console.RegisterCommand("webui3d2d_spawn", function()
         local pPlayer = localPlayer()
@@ -368,20 +353,18 @@ local function updateWebUIsVisibility()
     end
 end
 
-----------------------------------------------------------------------
 -- 3D cursor
 ----------------------------------------------------------------------
---[[
-    findCursorDecalPos
-        desc: Get the 3d space location and rotation of the cursor decal
-        return: Location (Vector), Rotation (Rotator)
-]]--
+
+---Get the 3d space location and rotation of the cursor decal
+---@param tTrace table @The trace result of the target lookup
+---@return Vector @The location of the cursor decal
 local function findCursorDecalPos(tTrace)
     if not oTargetUI or not oTargetUI:IsValid() then
         return Vector(), Rotator()
     end
 
-    local tRot = (tTrace.Normal:Rotation():Quaternion() * Quat(1, 0, 0, 0)):Rotator()
+    local tRot = (tTrace.Normal:ToOrientationRotator():Quaternion() * Quat(1, 0, 0, 0)):Rotator()
     local tUp = tRot:GetUpVector()
     local tRight = tRot:GetRightVector()
     local fCursorSize = oTargetUI:GetCursorSize()
@@ -389,10 +372,7 @@ local function findCursorDecalPos(tTrace)
     return tTrace.Location + (tRight * fCursorSize) + (tUp * fCursorSize), tRot
 end
 
---[[ 
-    cursorDecalTick
-        desc: Internal function to update the cursor decal location
-]]--
+---Internal function to update the cursor decal location
 local function cursorDecalTick(fDelta)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not oTargetUI.cursor_decal or not oTargetUI.cursor_decal:IsValid() then return end
@@ -439,7 +419,7 @@ local function handleCursorMouseMove(oWebUI, tTrace)
     if not oWebUI.cursor_decal or not oWebUI.cursor_decal:IsValid() then return end
 
     -- Destroy cursor decal if mouse is enabled
-    if Input.IsMouseEnabled() or localPlayer():GetCameraFocusedWebUI3d2d() then
+    if Input.IsMouseEnabled() then
         oWebUI.cursor_decal:Destroy()
         oWebUI.cursor_decal = nil
         return
@@ -451,14 +431,12 @@ local function handleCursorMouseMove(oWebUI, tTrace)
     oWebUI.cursor_decal:SetRotation(tRot)
 end
 
-----------------------------------------------------------------------
 -- WebUI3d2d targeting
 ----------------------------------------------------------------------
 
 ---`🔸 Client`<br>
 ---Get the current targeted WebUI3d2d
 ---@return WebUI3d2d|nil @WebUI3d2d instance
----
 function Player:GetTargetedWebUI3d2d()
     if oTargetUI and oTargetUI:IsValid() then
         return oTargetUI
@@ -610,13 +588,10 @@ Client.Subscribe("Tick", function(fDelta)
     -- Update cursor decal location and visibility
     cursorDecalTick(fDelta)
 
-    -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted/focused or not
+    -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted or not
     if (iTime < iNextTargetLookup) then return end
 
-    local eChar = localPlayer()
-    if not eChar or not eChar:IsValid() then return end
-
-    if (oTargetUI or eChar:GetCameraFocusedWebUI3d2d()) then
+    if oTargetUI then
         iNextTargetLookup = iTime + (1000 / iTargetTickRate)
     else
         iNextTargetLookup = iTime + (1000 / iTargetIdleTickRate)
@@ -818,14 +793,14 @@ WebUI3d2d = WebUI.Inherit("WebUI3d2d")
     WebUI3d2d:Constructor
         desc: Class that spawn a dynamic and usable WebUI in the world space 
         args:
-            sPath: Web URL, or HTML File Path as file://my_file.html (string) [optionnal: default ""]
-            bTransparent: Should the WebUI3d2d be transparent (boolean) [optionnal: default false]
-            iW: The WebUI3d2d width (number) [optionnal: default `tScale` X]
-            iH: The WebUI3d2d height (number) [optionnal: default `tScale` Y]
-            tScale: The WebUI3d2d mesh scale (Vector) [optionnal: default Vector(1)]
-            bAttach3DSound: Should a 3D sound emitting audio from the UI be attached to the WebUI3d2d (boolean) [optionnal: default false]
-            sMesh: The mesh to use for the WebUI3d2d (string) [optionnal: default "nanos-world::SM_Plane"]
-            iMatIndex: The material index to use for the WebUI3d2d (number) [optionnal: default -1]
+            sPath: Web URL, or HTML File Path as file://my_file.html (string) [optional: default ""]
+            bTransparent: Should the WebUI3d2d be transparent (boolean) [optional: default false]
+            iW: The WebUI3d2d width (number) [optional: default `tScale` X]
+            iH: The WebUI3d2d height (number) [optional: default `tScale` Y]
+            tScale: The WebUI3d2d mesh scale (Vector) [optional: default Vector(1)]
+            bAttach3DSound: Should a 3D sound emitting audio from the UI be attached to the WebUI3d2d (boolean) [optional: default false]
+            sMesh: The mesh to use for the WebUI3d2d (string) [optional: default "nanos-world::SM_Plane"]
+            iMatIndex: The material index to use for the WebUI3d2d (number) [optional: default -1]
 ]]--
 function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, sMesh, iMatIndex)
     sPath = (type(sPath) == "string") and sPath or ""
@@ -953,12 +928,6 @@ function WebUI3d2d:OnDestroy()
     -- Untarget the WebUI3d2d if it's the current target (will also remove the cursor)
     if oTargetUI and (oTargetUI == self) then
         untargetWebUI3d2d()
-    end
-
-    -- Unfocus the camera if it's focused on this WebUI3d2d
-    local oCameraFocused = localPlayer():GetCameraFocusedWebUI3d2d()
-    if oCameraFocused and (oCameraFocused == self) then
-        localPlayer():UnfocusWebUI3d2dCamera()
     end
 
     -- Destroy the mesh and sound
@@ -1190,129 +1159,6 @@ end
 function WebUI3d2d:GetCursorSize()
     return self.cursor_size or fDefaultCursorSize
 end
-
-----------------------------------------------------------------------
--- Camera focus
-----------------------------------------------------------------------
-
----`🔸 Client`<br>
----Returns the WebUI3d2d that is currently focused by the camera
----@return WebUI3d2d|nil @The WebUI3d2d that is currently focused by the camera
----
-function Player:GetCameraFocusedWebUI3d2d()
-    local oWebUI = self:GetValue("webui3d2d_cview_focused_instance")
-    if oWebUI and oWebUI:IsValid() then
-        return oWebUI
-    end
-end
-
----`🔸 Client`<br>
----Unfocus the WebUI3d2d camera
----
-function Player:UnfocusWebUI3d2dCamera()
-    if (self ~= localPlayer()) or not self:GetCameraFocusedWebUI3d2d() then return end
-
-    local tCViewInfo = self:GetValue("webui3d2d_cview_info")
-    if tCViewInfo then
-        if tCViewInfo.mesh and tCViewInfo.mesh:IsValid() then
-            tCViewInfo.mesh:Destroy()
-        end
-
-        self:SetCameraArmLength(tCViewInfo.camera_arm_length)
-        self:SetCameraRotation(tCViewInfo.camera_rotation)
-        Client.SetNearClipPlane(tCViewInfo.near_clip_plane)
-
-        if tCViewInfo.view_mode then
-            local eChar = self:GetControlledCharacter()
-            if eChar and eChar:IsValid() then
-                eChar:SetViewMode(ViewMode.TPS1)
-                eChar:SetViewMode(tCViewInfo.view_mode)
-            end
-        end
-    end
-
-    self:ResetCamera()
-    self:SetValue("webui3d2d_cview_info", nil, false)
-    self:SetValue("webui3d2d_cview_focused_instance", nil, false)
-
-    Input.SetMouseEnabled(false)
-    Input.SetInputEnabled(true)
-end
-
----`🔸 Client`<br>
----Focus the camera on a WebUI3d2d
----@param oWebUI WebUI3d2d @The WebUI3d2d to focus the camera on
----@param fCameraDist number @The distance from the camera to the WebUI3d2d
----@param fClipPlaneDist number @The distance from the camera to the clip plane
----@param iBlendTime number @The time it takes to blend to the new camera position
----
-function Player:FocusWebUI3d2dCamera(oWebUI, fCameraDist, fClipPlaneDist, iBlendTime)
-    if (self ~= localPlayer()) then return end
-    if (getmetatable(oWebUI) ~= WebUI3d2d) then return end
-
-    self:UnfocusWebUI3d2dCamera()
-    self:SetValue("webui3d2d_cview_focused_instance", oWebUI, false)
-
-    -- Disable game inputs
-    Input.SetMouseEnabled(true)
-    Input.SetInputEnabled(false)
-
-    -- Calculate camera distance/location/clip plane
-    local tBounds = oWebUI:GetBounds()
-    fCameraDist = fCameraDist or tBounds.BoxExtent:Size()
-
-    local tCamLoc = (tBounds.Origin + (oWebUI.mesh:GetRotation():GetUpVector() * fCameraDist))
-    fClipPlaneDist = (fClipPlaneDist or (tCamLoc:Distance(tBounds.Origin) * 0.5))
-    iBlendTime = (iBlendTime or 500)
-
-    -- Camera handler mesh
-    local eCVMesh = StaticMesh(Vector(), Rotator(), "nanos-world::SM_Cube")
-    eCVMesh:AttachTo(oWebUI.mesh, AttachmentRule.KeepRelative, "", 0, false)
-    eCVMesh:SetRelativeLocation(Vector(0, 0, fCameraDist))
-    eCVMesh:SetCollision(CollisionType.NoCollision)
-    eCVMesh:SetVisibility(false)
-
-    -- Cache some values for later use
-    local eChar = self:GetControlledCharacter()
-    self:SetValue("webui3d2d_cview_info", {
-        mesh = eCVMesh,
-        camera_rotation = self:GetCameraRotation(),
-        camera_arm_length = self:GetCameraArmLength(true),
-        near_clip_plane = Client.GetNearClipPlane(),
-        view_mode = ((eChar and eChar:IsValid()) and eChar:GetViewMode() or false)
-    }, false)
-
-    -- Calc view
-    self:AttachCameraTo(eCVMesh, Vector(), iBlendTime)
-    self:RotateCameraTo((tBounds.Origin - tCamLoc):Rotation(), (iBlendTime * 0.001), 1)
-    self:SetCameraArmLength(0)
-
-    -- Adjust near clip plane
-    Client.SetNearClipPlane(fClipPlaneDist)
-end
-
---[[
-    recoverFocusInputs
-        desc: Internal function to recover the correct inputs and WebUIs visibility when the camera is focused
-]]--
-local function recoverFocusInputs()
-    if not localPlayer() or not localPlayer():GetCameraFocusedWebUI3d2d() then return end
-
-    Input.SetMouseEnabled(true)
-    Input.SetInputEnabled(false)
-
-    updateWebUIsVisibility()
-end
-
-Chat.Subscribe("Close", recoverFocusInputs)
-Console.Subscribe("Close", recoverFocusInputs)
-WebUI.Subscribe("Spawn", recoverFocusInputs)
-WebUI.Subscribe("VisibilityChange", recoverFocusInputs)
-
-Input.Subscribe("MouseEnable", function(bEnabled)
-    if bEnabled then return end
-    Timer.SetTimeout(recoverFocusInputs, 0)
-end)
 
 ----------------------------------------------------------------------
 -- WebUI3d2d wrapper methods
