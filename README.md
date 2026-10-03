@@ -49,6 +49,7 @@ Your PRs are welcome!
   - For instance, you can create a curved UI depending on the mesh you use
   - Optionnaly, you can change the material index used for texture projection on the mesh
   - Automatic interract distance, depending on the WebUI3d2d mesh scale
+  - On the default plane, the cursor position comes from the hit point when nanos returns no hit UV; other meshes need nanos' hit UVs
 
 #### 🚀 Optimized target lookup
   - The "target lookup" is what handles 3D UI targetting, the cursor location on a targetted UI, and so on..

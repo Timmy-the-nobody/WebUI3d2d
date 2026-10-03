@@ -30,6 +30,8 @@ local iMaxUISize = 8192                                                         
 local fDefaultCursorSize = 1.2                                                                  -- Default cursor size (if not changed by `SetCursorSize`)
 local iCursorHideDelay = 3000                                                                   -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
 local sCursorTexture = "package://"..Package.GetName().."/Client/resources/cursor.png"          -- Path to the cursor texture
+local sDefaultMesh = "nanos-world::SM_Plane"                                                    -- Default WebUI3d2d mesh
+local fPlaneSize = 100                                                                          -- Size of the default mesh in cm before scale, U along X and V along Y from its -X -Y corner
 
 -- Static (performance) 
 local iTargetTickRate = 12                                                                      -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
@@ -275,7 +277,7 @@ end
 
 --[[ isLocalURL ]]--
 local function isLocalURL(sURL)
-    return (type(sURL) ~= "string") and (sURL:match(sLocalURLPrefixRegex) ~= nil)
+    return (type(sURL) == "string") and (sURL:match(sLocalURLPrefixRegex) ~= nil)
 end
 
 --[[
@@ -353,12 +355,14 @@ local function updateWebUIsVisibility()
     end
 end
 
+----------------------------------------------------------------------
 -- 3D cursor
 ----------------------------------------------------------------------
 
 ---Get the 3d space location and rotation of the cursor decal
 ---@param tTrace table @The trace result of the target lookup
 ---@return Vector @The location of the cursor decal
+---@return Rotator @The rotation of the cursor decal
 local function findCursorDecalPos(tTrace)
     if not oTargetUI or not oTargetUI:IsValid() then
         return Vector(), Rotator()
@@ -431,6 +435,7 @@ local function handleCursorMouseMove(oWebUI, tTrace)
     oWebUI.cursor_decal:SetRotation(tRot)
 end
 
+----------------------------------------------------------------------
 -- WebUI3d2d targeting
 ----------------------------------------------------------------------
 
@@ -441,6 +446,33 @@ function Player:GetTargetedWebUI3d2d()
     if oTargetUI and oTargetUI:IsValid() then
         return oTargetUI
     end
+end
+
+--[[
+    getHitUV
+        desc: UV of a trace hit on a WebUI3d2d mesh. nanos can return no hit UV (0, 0) when the hit body has
+              no complex collision or UV support; on the default plane the UV then follows from where the
+              trace hit the plane. Other meshes rely on nanos' UV.
+        return: U (number), V (number)
+]]--
+local function getHitUV(oWebUI, tTrace)
+    local tUV = tTrace.UV
+    if tUV and ((tUV.X ~= 0) or (tUV.Y ~= 0)) then
+        return tUV.X, tUV.Y
+    end
+
+    if not oWebUI.default_mesh then
+        return 0, 0
+    end
+
+    local eMesh = oWebUI.mesh
+    local tLocal = eMesh:GetRotation():UnrotateVector(tTrace.Location - eMesh:GetLocation())
+    local tScale = eMesh:GetScale()
+
+    local fU = (tLocal.X / (fPlaneSize * tScale.X)) + 0.5
+    local fV = (tLocal.Y / (fPlaneSize * tScale.Y)) + 0.5
+
+    return mathMax(0, mathMin(fU, 1)), mathMax(0, mathMin(fV, 1))
 end
 
 --[[
@@ -490,8 +522,9 @@ local function targetLookup()
 
     -- Translate the UV coordinates to pixels
     local tSize = oWebUI:GetSize()
-    local iX = mathFloor(tTrace.UV.X * tSize.X)
-    local iY = mathFloor(tTrace.UV.Y * tSize.Y)
+    local fU, fV = getHitUV(oWebUI, tTrace)
+    local iX = mathFloor(fU * tSize.X)
+    local iY = mathFloor(fV * tSize.Y)
 
     return oWebUI, iX, iY, tTrace
 end
@@ -635,7 +668,7 @@ local function doMouseDown(sKey)
 
     if oTargetUI.last_clicked_key and (oTargetUI.last_clicked_key == sKey) then
         if ((iTime - (oTargetUI.last_click_time or 0)) < 250) then
-            oTargetUI.click_count = math.max((oTargetUI.click_count or 0) + 1, 3)
+            oTargetUI.click_count = mathMin((oTargetUI.click_count or 0) + 1, 3)
         else
             oTargetUI.click_count = 1
         end
@@ -843,7 +876,9 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.keyboard_events_enabled = false
 
     self.material_index = (iMatIndex or -1)
+    self.default_mesh = ((sMesh or sDefaultMesh) == sDefaultMesh)
     self.reload_on_fail = true
+    self.path = sPath -- WebUI has no GetPath, ReloadPage reads this
     self.mouse_aliases = {}
 
     self.cursor_x = 0
@@ -852,7 +887,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.down_mouse_buttons = {}
 
     -- Parent mesh
-    self.mesh = StaticMesh(Vector(), Rotator(), sMesh or "nanos-world::SM_Plane")
+    self.mesh = StaticMesh(Vector(), Rotator(), sMesh or sDefaultMesh)
     self.mesh:SetValue("webui3d2d_page", self, false)
     self.mesh:SetScale(tScale)
     self.mesh:SetCollision(CollisionType.NoCollision)
@@ -880,10 +915,8 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
         self.sound:AttachTo(self.mesh, AttachmentRule.SnapToTarget, "", -1, false)
     end
 
-    -- Force a `MakeNoSignal` call if the URL is not valid
-    if not (isLocalURL(sPath) or isRemoteURL(sPath)) then
-        self:MakeNoSignal()
-    end
+    -- Noise until `OnReady` paints the page on the mesh, or for good if the URL is not valid
+    self:MakeNoSignal()
 end
 
 ---`🔸 Client`<br>
@@ -891,8 +924,7 @@ end
 ---Reload the WebUI3d2d page
 ---
 function WebUI3d2d:ReloadPage()
-    -- TODO: Uncoment when `webui:GetPath` will be added
-    -- self:LoadURL(self:GetPath())
+    self:LoadURL(self.path)
 end
 
 ---`🔸 Client`<br>
@@ -904,6 +936,7 @@ function WebUI3d2d:OnFail()
 
     if self:ShouldReloadOnFail() then
         Timer.SetTimeout(function()
+            if not self:IsValid() then return end
             self:ReloadPage()
         end, 2000)
     end
@@ -946,6 +979,7 @@ function WebUI3d2d:LoadURL(sURL)
         return
     end
 
+    self.path = sURL
     self.Super:LoadURL(sURL)
     self.mesh:SetMaterialFromWebUI(self, self.material_index)
 end
