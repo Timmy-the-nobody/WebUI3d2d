@@ -93,6 +93,7 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`IsCursorTraceControlEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursortracecontrolenabled
 [`IsCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursordecalenabled
 [`IsInteractable`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#isinteractable
+[`IsKeptAwake`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeptawake
 [`IsMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#ismouseeventsenabled
 [`IsKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardeventsenabled
 [`IsKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardinputenabled
@@ -101,6 +102,7 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`SetCursorTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursortracecontrol
 [`SetCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursordecalenabled
 [`SetCursorSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursorsize
+[`SetKeepAwake`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeepawake
 [`SetMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setmouseeventsenabled
 [`SetKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardeventsenabled
 [`SetKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardinputenabled
@@ -122,6 +124,7 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 | [boolean]             | [`IsCursorTraceControlEnabled`]       | Returns wether the cursor trace control is enabled or not
 | [boolean]             | [`IsCursorDecalEnabled`]              | Returns wether the 3D cursor decal is enabled or not
 | [boolean]             | [`IsInteractable`]                    | Returns wether the WebUI3d2d is interactable or not
+| [boolean]             | [`IsKeptAwake`]                       | Returns wether the WebUI3d2d is kept awake or not
 | [boolean]             | [`IsKeyboardInputEnabled`]            | Returns wether the WebUI3d2d accept keyboard input or not
 | [boolean]             | [`IsKeyboardEventsEnabled`]           | Returns wether the WebUI3d2d allow keyboard events or not
 | [boolean]             | [`IsMouseEventsEnabled`]              | Returns wether the WebUI3d2d allow mouse events or not
@@ -130,6 +133,7 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 |                       | [`SetCursorTraceControl`]             | Enable or disable the cursor trace control
 |                       | [`SetCursorDecalEnabled`]             | Enable or disable the 3D cursor decal
 |                       | [`SetCursorSize`]                     | Set the cursor decal size
+|                       | [`SetKeepAwake`]                      | Keep the WebUI3d2d rendering whatever its distance or view
 |                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
 |                       | [`SetKeyboardEventsEnabled`]          | Enable or disable the keyboard events
 |                       | [`SetMouseEventsEnabled`]             | Enable or disable the mouse events
@@ -245,10 +249,20 @@ local ret = my_webui:IsCursorDecalEnabled()
 > Returns wether the WebUI3d2d is interactable or not
 >> If hardware cursor is enabled it'll return the result of [`IsCursorTraceControlEnabled`]
 <br> Otherwise it'll return the result of [`IsCameraTraceControlEnabled`]
+<br> To take input, the WebUI3d2d's bounds diagonal, laid across the view where the cursor hits it, must also span at least a quarter of the view's width (its size, distance and the lens all count, not its page resolution): at a 90° FOV that's within 4 times `GetBounds().BoxExtent:Size()`
 >
 > Returns [boolean]
 ```lua
 local ret = my_webui:IsInteractable()
+```
+
+##
+#### `IsKeptAwake`
+> Returns wether the WebUI3d2d is kept awake, by [`SetKeepAwake`] or its release delay
+>
+> Returns [boolean]
+```lua
+local ret = my_webui:IsKeptAwake()
 ```
 
 ##
@@ -324,6 +338,17 @@ my_webui:SetCursorSize(fSize)
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
 | [float]               | `fSize`               |                           | The new size of the cursor decal
+
+##
+#### `SetKeepAwake`
+> Keep the WebUI3d2d rendering whatever its distance or view (WebUI3d2d otherwise freezes pages that are out of view or far from the camera). Use it for a page in use, or one finishing an animation in sight: on release, `iReleaseDelay` keeps it awake a little longer so the frame left on the mesh once it freezes is the final one
+```lua
+my_webui:SetKeepAwake(bAwake, iReleaseDelay)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bAwake`              |                           | Should the WebUI3d2d stay awake
+| [integer]             | `iReleaseDelay`       | `0`                       | On release, milliseconds before it may freeze again
 
 ##
 #### `SetKeyboardInputEnabled`

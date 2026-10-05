@@ -48,7 +48,7 @@ Your PRs are welcome!
 #### 🧱 Allows to override the StaticMesh plane used as `WebUI3d2d` parent
   - For instance, you can create a curved UI depending on the mesh you use
   - Optionnaly, you can change the material index used for texture projection on the mesh
-  - Automatic interract distance, depending on the WebUI3d2d mesh scale
+  - Automatic interaction range: a WebUI3d2d takes input once it spans a quarter of the view, whatever its scale, distance or the lens
   - On the default plane, the cursor position comes from the hit point when nanos returns no hit UV; other meshes need nanos' hit UVs
 
 #### 🚀 Optimized target lookup
@@ -59,3 +59,4 @@ Your PRs are welcome!
   - This greatly optimizes the game experience when no WebUI3d2d is targeted (or in a decent range)
   - Freeze the page when the mesh stops being rendered
   - Freeze the page when the mesh is out of range from the camera
+  - `SetKeepAwake` keeps a page rendering through both, for a page used from further than the freeze range

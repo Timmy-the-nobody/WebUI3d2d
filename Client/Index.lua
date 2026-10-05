@@ -17,6 +17,8 @@ local localPlayer = Client.GetLocalPlayer
 local traceLineSingle = Trace.LineSingle
 local getMousePosition = Viewport.GetMousePosition
 local deprojectScreenToWorld = Viewport.DeprojectScreenToWorld
+local projectWorldToScreen = Viewport.ProjectWorldToScreen
+local getViewportSize = Viewport.GetViewportSize
 
 -- Dynamic vars (Internal)
 local oTargetUI = false
@@ -36,6 +38,7 @@ local fPlaneSize = 100                                                          
 -- Static (performance) 
 local iTargetTickRate = 12                                                                      -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
 local iTargetIdleTickRate = 4                                                                   -- Tick rate when no WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
+local fMinScreenShare = 0.25                                                                    -- Share of the view's width a WebUI3d2d's bounds diagonal must span where it's hit to take input (within 4 times BoxExtent:Size() at a 90° FOV)
 local fFreezeFromDist = 4                                                                       -- Distance from the targeted WebUI3d2d at which the UI will freeze ((width + height) * VALUE)
 local iFreezeCheckDelay = 1000                                                                  -- Delay between freeze checks (don't set it too low or it will cause performance issues)
 
@@ -142,9 +145,9 @@ local tSpecialKeys = {
     ["F12"] =               {code = 123}
 }
 
-----------------------------------------------------------------------
 -- Debug
 ----------------------------------------------------------------------
+
 if bDebugCommands then
     -- webui3d2d_spawn
     Console.RegisterCommand("webui3d2d_spawn", function()
@@ -163,14 +166,11 @@ if bDebugCommands then
     end, "Spawns a WebUI3d2d")
 end
 
-----------------------------------------------------------------------
 -- Internal utils (inputs related)
 ----------------------------------------------------------------------
---[[
-    getWebUIModifiers
-        desc: Translate key modifiers and mouse buttons to CEF modifiers
-        return: WebUIModifier (integer)
-]]--
+
+---Translate key modifiers and mouse buttons to CEF modifiers
+---@return WebUIModifier @The WebUIModifier integer
 local function getWebUIModifiers()
     local iKeyModifiers = Input.GetModifierKeys()
     local iWebUIModifiers = WebUIModifier.None
@@ -190,17 +190,14 @@ local function getWebUIModifiers()
     return iWebUIModifiers
 end
 
---[[ isLetter ]]--
 local function isLetter(sInput)
     return (#sInput == 1) and (sInput:match("[A-Za-z]") ~= nil)
 end
 
---[[ isCapsLockOn ]]--
 local function isCapsLockOn()
     return ((Input.GetModifierKeys() & KeyModifier.CapsLocked) ~= 0)
 end
 
---[[ isShiftDown ]]--
 local function isShiftDown()
     local iKeyModifiers = Input.GetModifierKeys()
 
@@ -215,14 +212,11 @@ end
 --     return ((Input.GetModifierKeys() & KeyModifier.NumLocked) ~= 0)
 -- end
 
---[[
-    getKeyInfo
-        desc: Find the keycode of a key, the ASCII code if it's an ASCII character, and if it shouldn't trigger Up/Down events
-        return:
-            Key code (integer)
-            Is ASCII character (boolean)
-            ASCII character only, don't trigger Up/Down event (boolean)
-]]--
+---Find the keycode of a key, the ASCII code if it's an ASCII character, and if it shouldn't trigger Up/Down events
+---@param sKey string @The key name
+---@return integer @The key code
+---@return integer @The ASCII code
+---@return boolean @Shouldn't trigger Up/Down events
 local function getKeyInfo(sKey)
     if sKey:find("Gamepad") then return end
 
@@ -260,11 +254,9 @@ local function getKeyInfo(sKey)
     return iKeyCode
 end
 
-----------------------------------------------------------------------
 -- Internal utils
 ----------------------------------------------------------------------
 
---[[ isRemoteURL ]]--
 local function isRemoteURL(sURL)
     if type(sURL) ~= "string" then return end
 
@@ -275,15 +267,11 @@ local function isRemoteURL(sURL)
     end
 end
 
---[[ isLocalURL ]]--
 local function isLocalURL(sURL)
     return (type(sURL) == "string") and (sURL:match(sLocalURLPrefixRegex) ~= nil)
 end
 
---[[
-    setupMaterialParams
-        desc: Setup the material parameters of an actor, used for 3d2d rendering
-]]--
+---Setup the material parameters of an actor, used for 3d2d rendering
 local function setupMaterialParams(xActor)
     if not xActor or not xActor:IsValid() then return end
 
@@ -293,10 +281,7 @@ local function setupMaterialParams(xActor)
     xActor:SetMaterialColorParameter("Emissive", Color(0.2))
 end
 
---[[
-    calcFreezeStates
-        desc: Freeze WebUI3d2d objects that are not in the player's view or range
-]]--
+---Freeze WebUI3d2d objects that are not in the player's view or range
 local function calcFreezeStates()
     local pPlayer = localPlayer()
     if not pPlayer then return end
@@ -305,6 +290,8 @@ local function calcFreezeStates()
 
     for _, oWebUI in ipairs(WebUI3d2d.GetAll()) do
         if not oWebUI.ready then goto continue end
+        -- In use, or finishing an animation in sight (SetKeepAwake)
+        if oWebUI:IsKeptAwake() then goto continue end
 
         if not oWebUI:WasRecentlyRendered() then
             if not oWebUI:IsFrozen() then
@@ -330,10 +317,7 @@ local function calcFreezeStates()
     end
 end
 
---[[
-    updateWebUIsVisibility
-        desc: Internal function to update the visibility of all WebUIs
-]]--
+---Internal function to update the visibility of all WebUIs
 local function updateWebUIsVisibility()
     for _, v in ipairs(WebUI.GetAll()) do
         if (v:GetClass() == WebUI3d2d) then goto continue end
@@ -355,7 +339,6 @@ local function updateWebUIsVisibility()
     end
 end
 
-----------------------------------------------------------------------
 -- 3D cursor
 ----------------------------------------------------------------------
 
@@ -411,13 +394,9 @@ local function cursorDecalTick(fDelta)
     ))
 end
 
---[[
-    handleCursorMouseMove
-        desc: Handles the WebUI3d2d cursor movement
-        args:
-            oWebUI: The WebUI3d2d instance to handle the cursor movement for (WebUI3d2d)
-            tTrace: The trace result of the target lookup (table)
-]]--
+---Handles the WebUI3d2d cursor movement
+---@param oWebUI WebUI3d2d @The WebUI3d2d instance to handle the cursor movement for
+---@param tTrace table @The trace result of the target lookup
 local function handleCursorMouseMove(oWebUI, tTrace)
     if not oWebUI:IsCursorDecalEnabled() then return end
     if not oWebUI.cursor_decal or not oWebUI.cursor_decal:IsValid() then return end
@@ -435,7 +414,6 @@ local function handleCursorMouseMove(oWebUI, tTrace)
     oWebUI.cursor_decal:SetRotation(tRot)
 end
 
-----------------------------------------------------------------------
 -- WebUI3d2d targeting
 ----------------------------------------------------------------------
 
@@ -448,13 +426,13 @@ function Player:GetTargetedWebUI3d2d()
     end
 end
 
---[[
-    getHitUV
-        desc: UV of a trace hit on a WebUI3d2d mesh. nanos can return no hit UV (0, 0) when the hit body has
-              no complex collision or UV support; on the default plane the UV then follows from where the
-              trace hit the plane. Other meshes rely on nanos' UV.
-        return: U (number), V (number)
-]]--
+---UV of a trace hit on a WebUI3d2d mesh. nanos can return no hit UV (0, 0) when the hit body has<br>
+---no complex collision or UV support; on the default plane the UV then follows from where the<br>
+---trace hit the plane. Other meshes rely on nanos' UV.
+---@param oWebUI WebUI3d2d @The WebUI3d2d instance
+---@param tTrace table @The trace result
+---@return number @U
+---@return number @V
 local function getHitUV(oWebUI, tTrace)
     local tUV = tTrace.UV
     if tUV and ((tUV.X ~= 0) or (tUV.Y ~= 0)) then
@@ -475,15 +453,29 @@ local function getHitUV(oWebUI, tTrace)
     return mathMax(0, mathMin(fU, 1)), mathMax(0, mathMin(fV, 1))
 end
 
---[[
-    targetLookup
-        desc: Lookup for a targetted WebUI3d2d object and find the mouse position (in pixels) on this WebUI3d2d
-        return:
-            WebUI3d2d object (WebUI3d2d)
-            X position (integer)
-            Y position (integer)
-            Trace result (table)
-]]--
+---Share of the view's width a WebUI3d2d's bounds diagonal spans, laid across the view where the trace hit
+---it: its world size, its distance and the lens all count, its page resolution doesn't. The hit point is
+---always in front of the camera, so both ends project
+---@param tAt Vector @Where the trace hit the WebUI3d2d
+---@param oWebUI WebUI3d2d
+---@param pPlayer Player
+---@return number
+local function getScreenShare(tAt, oWebUI, pPlayer)
+    local tViewport = getViewportSize()
+    if (tViewport.X <= 0) then return 0 end
+
+    local tSpan = pPlayer:GetCameraRotation():GetRightVector() * oWebUI:GetBounds().BoxExtent:Size()
+    local tLeft = projectWorldToScreen(tAt - tSpan)
+    local tRight = projectWorldToScreen(tAt + tSpan)
+
+    return mathAbs(tRight.X - tLeft.X) / tViewport.X
+end
+
+---Lookup for a targetted WebUI3d2d object and find the mouse position (in pixels) on this WebUI3d2d
+---@return WebUI3d2d? @WebUI3d2d instance
+---@return number? @Cursor X on the page, in pixels
+---@return number? @Cursor Y on the page, in pixels
+---@return table? @The trace that hit it
 local function targetLookup()
     local pPlayer = localPlayer()
     if not pPlayer then return end
@@ -516,9 +508,8 @@ local function targetLookup()
     local oWebUI = tTrace.Entity:GetValue("webui3d2d_page")
     if not oWebUI or not oWebUI.ready or not oWebUI:IsInteractable() then return end
 
-    -- Check if the WebUI3d2d is in range
-    local iMaxInteractDist = ((oWebUI:GetBounds().BoxExtent:Size() * 4) ^ 2)
-    if (tTrace.Location:DistanceSquared(tCamPos) > iMaxInteractDist) then return end
+    -- Check if the WebUI3d2d is big enough on screen to use (fMinScreenShare)
+    if (getScreenShare(tTrace.Location, oWebUI, pPlayer) < fMinScreenShare) then return end
 
     -- Translate the UV coordinates to pixels
     local tSize = oWebUI:GetSize()
@@ -529,10 +520,7 @@ local function targetLookup()
     return oWebUI, iX, iY, tTrace
 end
 
---[[
-    untargetWebUI3d2d
-        desc: Untargets the current targeted WebUI3d2d
-]]--
+---Untargets the current targeted WebUI3d2d
 local function untargetWebUI3d2d()
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
@@ -570,10 +558,9 @@ local function untargetWebUI3d2d()
     Events.Call("OnWebUI3d2dTargetChange", xOldTarget, oTargetUI)
 end
 
---[[
-    targetWebUI3d2d
-        desc: Targets a WebUI3d2d
-]]--
+---Targets a WebUI3d2d
+---@param oWebUI WebUI3d2d instance
+---@param tTrace table
 local function targetWebUI3d2d(oWebUI, tTrace)
     local xOldTarget = oTargetUI
 
@@ -605,10 +592,9 @@ local function targetWebUI3d2d(oWebUI, tTrace)
     Events.Call("OnWebUI3d2dTargetChange", xOldTarget, oTargetUI)
 end
 
-----------------------------------------------------------------------
 -- Events
 ----------------------------------------------------------------------
---[[ Client Tick ]]--
+
 Client.Subscribe("Tick", function(fDelta)
     local iTime = Client.GetTime()
 
@@ -655,10 +641,9 @@ Client.Subscribe("Tick", function(fDelta)
     end
 end)
 
-----------------------------------------------------------------------
 -- Mouse Events
 ----------------------------------------------------------------------
---[[ doMouseDown ]]--
+
 local function doMouseDown(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not tMouseTypes[sKey] then return end
@@ -695,10 +680,8 @@ local function doMouseDown(sKey)
     return oTargetUI:IsMouseEventsEnabled()
 end
 
---[[ Input MouseDown ]]--
 Input.Subscribe("MouseDown", doMouseDown)
 
---[[ doMouseUp ]]--
 local function doMouseUp(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not tMouseTypes[sKey] then return end
@@ -721,17 +704,15 @@ end
 --[[ Input MouseUp ]]--
 Input.Subscribe("MouseUp", doMouseUp)
 
-----------------------------------------------------------------------
 -- Keyboard Events
 ----------------------------------------------------------------------
---[[ Input KeyDown ]]--
+
 Input.Subscribe("KeyDown", function(_)
     if oTargetUI and oTargetUI:IsValid() then
         return oTargetUI:IsKeyboardEventsEnabled()
     end
 end)
 
---[[ Input KeyPress ]]--
 local function doKeyPress(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
@@ -768,7 +749,6 @@ end
 
 Input.Subscribe("KeyPress", doKeyPress)
 
---[[ Input KeyUp ]]--
 local function doKeyRelease(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
@@ -792,7 +772,6 @@ end
 
 Input.Subscribe("KeyUp", doKeyRelease)
 
---[[ Input MouseScroll ]]--
 local function doMouseScroll(_, _, iDelta)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
@@ -811,7 +790,6 @@ end
 
 Input.Subscribe("MouseScroll", doMouseScroll)
 
-----------------------------------------------------------------------
 -- WebUI3d2d class and methods
 ----------------------------------------------------------------------
 
@@ -819,22 +797,8 @@ Input.Subscribe("MouseScroll", doMouseScroll)
 ---`WebUI3d2d` is a class that represents a WebUI3d2d instance
 ---@class WebUI3d2d : WebUI
 ---@overload fun(sPath: string, bTransparent: boolean, iW: integer, iH: integer, tScale: Vector, bAttach3DSound: boolean, sMesh: string, iMatIndex: integer): WebUI3d2d
----
 WebUI3d2d = WebUI.Inherit("WebUI3d2d")
 
---[[
-    WebUI3d2d:Constructor
-        desc: Class that spawn a dynamic and usable WebUI in the world space 
-        args:
-            sPath: Web URL, or HTML File Path as file://my_file.html (string) [optional: default ""]
-            bTransparent: Should the WebUI3d2d be transparent (boolean) [optional: default false]
-            iW: The WebUI3d2d width (number) [optional: default `tScale` X]
-            iH: The WebUI3d2d height (number) [optional: default `tScale` Y]
-            tScale: The WebUI3d2d mesh scale (Vector) [optional: default Vector(1)]
-            bAttach3DSound: Should a 3D sound emitting audio from the UI be attached to the WebUI3d2d (boolean) [optional: default false]
-            sMesh: The mesh to use for the WebUI3d2d (string) [optional: default "nanos-world::SM_Plane"]
-            iMatIndex: The material index to use for the WebUI3d2d (number) [optional: default -1]
-]]--
 function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, sMesh, iMatIndex)
     sPath = (type(sPath) == "string") and sPath or ""
     bTransparent = (bTransparent and true or false)
@@ -878,6 +842,7 @@ function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSou
     self.material_index = (iMatIndex or -1)
     self.default_mesh = ((sMesh or sDefaultMesh) == sDefaultMesh)
     self.reload_on_fail = true
+    self.keep_awake = false
     self.path = sPath -- WebUI has no GetPath, ReloadPage reads this
     self.mouse_aliases = {}
 
@@ -922,7 +887,6 @@ end
 ---`🔸 Client`<br>
 ---<h2>Internal method, only use this if you know what you're doing.</h2>
 ---Reload the WebUI3d2d page
----
 function WebUI3d2d:ReloadPage()
     self:LoadURL(self.path)
 end
@@ -930,7 +894,6 @@ end
 ---`🔸 Client`<br>
 ---<h2>Internal method, only use this if you know what you're doing.</h2>
 ---Called when the WebUI3d2d fails to load
----
 function WebUI3d2d:OnFail()
     self:MakeNoSignal()
 
@@ -945,7 +908,6 @@ end
 ---`🔸 Client`<br>
 ---<h2>Internal method, only use this if you know what you're doing.</h2>
 ---Called when the WebUI3d2d is ready to be used
----
 function WebUI3d2d:OnReady()
     self:SetFreeze(false)
     self.mesh:SetMaterialFromWebUI(self, self.material_index)
@@ -956,7 +918,6 @@ end
 ---`🔸 Client`<br>
 ---<h2>Internal method, only use this if you know what you're doing.</h2>
 ---Called when the WebUI3d2d is destroyed
----
 function WebUI3d2d:OnDestroy()
     -- Untarget the WebUI3d2d if it's the current target (will also remove the cursor)
     if oTargetUI and (oTargetUI == self) then
@@ -972,7 +933,6 @@ end
 ---`🔸 Client`<br>
 ---Makes the WebUI3d2d load the given URL
 ---@param sURL string @The URL to load
----
 function WebUI3d2d:LoadURL(sURL)
     if not (isLocalURL(sURL) or isRemoteURL(sURL)) then
         self:MakeNoSignal()
@@ -986,7 +946,6 @@ end
 
 ---`🔸 Client`<br>
 ---Sets the WebUI3d2d to a "no signal" state
----
 function WebUI3d2d:MakeNoSignal()
     self.mesh:SetMaterial("nanos-world::M_Noise", self.material_index)
 end
@@ -994,7 +953,6 @@ end
 ---`🔸 Client`<br>
 ---Returns the static mesh on which the WebUI3d2d is painted
 ---@return StaticMesh @The parent mesh
----
 function WebUI3d2d:GetStaticMesh()
     return self.mesh
 end
@@ -1002,7 +960,6 @@ end
 ---`🔸 Client`<br>
 ---Returns the 3D attached sound
 ---@return Sound|nil @The Sound instance
----
 function WebUI3d2d:GetAttachedSound()
     return self.sound
 end
@@ -1010,7 +967,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the mouse trace control
 ---@param bEnabled boolean @Should the mouse trace control be enabled or not
----
 function WebUI3d2d:SetCursorTraceControl(bEnabled)
     self.cursor_trace_control = (bEnabled and true or false)
 end
@@ -1018,7 +974,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the mouse trace control is enabled or not
 ---@return boolean @Is mouse trace control enabled?
----
 function WebUI3d2d:IsCursorTraceControlEnabled()
     return self.cursor_trace_control
 end
@@ -1026,7 +981,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the camera trace control
 ---@param bEnabled boolean @Should the camera trace control be enabled or not
----
 function WebUI3d2d:SetCameraTraceControl(bEnabled)
     self.camera_trace_control = (bEnabled and true or false)
 end
@@ -1034,7 +988,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the camera trace control is enabled or not
 ---@return boolean @Is camera trace control enabled?
----
 function WebUI3d2d:IsCameraTraceControlEnabled()
     return self.camera_trace_control
 end
@@ -1042,7 +995,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the keyboard events
 ---@param bEnabled boolean @Should the WebUI3d2d allow keyboard events or not
----
 function WebUI3d2d:SetKeyboardEventsEnabled(bEnabled)
     self.keyboard_events_enabled = (bEnabled and true or false)
 end
@@ -1050,7 +1002,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the WebUI3d2d allows keyboard events or not
 ---@return boolean @Is keyboard events allowed?
----
 function WebUI3d2d:IsKeyboardEventsEnabled()
     return self.keyboard_events_enabled
 end
@@ -1058,7 +1009,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the mouse events
 ---@param bEnabled boolean @Should the WebUI3d2d allow mouse events or not
----
 function WebUI3d2d:SetMouseEventsEnabled(bEnabled)
     self.mouse_events_enabled = (bEnabled and true or false)
 end
@@ -1066,7 +1016,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the WebUI3d2d allows mouse events or not
 ---@return boolean @Is mouse events allowed?
----
 function WebUI3d2d:IsMouseEventsEnabled()
     return self.mouse_events_enabled
 end
@@ -1074,7 +1023,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the keyboard input
 ---@param bEnabled boolean @Should the WebUI3d2d accept keyboard input or not
----
 function WebUI3d2d:SetKeyboardInputEnabled(bEnabled)
     self.keyboard_input_enabled = (bEnabled and true or false)
 end
@@ -1082,7 +1030,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the WebUI3d2d accepts keyboard input or not
 ---@return boolean @Is keyboard input allowed?
----
 function WebUI3d2d:IsKeyboardInputEnabled()
     return self.keyboard_input_enabled
 end
@@ -1091,7 +1038,6 @@ end
 ---Adds a key to the mouse aliases
 ---@param sKey string @The key to be aliased
 ---@param sMouseButton string @The mouse button to be aliased
----
 function WebUI3d2d:AddMouseAliasKey(sKey, sMouseButton)
     self.mouse_aliases[sKey] = sMouseButton
 end
@@ -1099,7 +1045,6 @@ end
 ---`🔸 Client`<br>
 ---Removes a key from the mouse aliases
 ---@param sKey string @The key to be removed
----
 function WebUI3d2d:RemoveMouseAliasKey(sKey)
     self.mouse_aliases[sKey] = nil
 end
@@ -1107,7 +1052,6 @@ end
 ---`🔸 Client`<br>
 ---Returns the mouse aliases table
 ---@return table<string, string> @The mouse aliases
----
 function WebUI3d2d:GetAllMouseAliasKeys()
     return self.mouse_aliases
 end
@@ -1116,7 +1060,6 @@ end
 ---Returns the mouse button aliased to a key
 ---@param sKey string @The key to be checked
 ---@return string @The mouse button aliased to the key
----
 function WebUI3d2d:GetMouseAliasKey(sKey)
     return self.mouse_aliases[sKey]
 end
@@ -1124,7 +1067,6 @@ end
 ---`🔸 Client`<br>
 ---Enable or disable the reload on fail
 ---@param bReloadOnFail boolean @Should the WebUI3d2d reload on fail or not
----
 function WebUI3d2d:SetReloadOnFail(bReloadOnFail)
     self.reload_on_fail = bReloadOnFail
 end
@@ -1132,7 +1074,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the WebUI3d2d reload on fail or not
 ---@return boolean @Should the WebUI3d2d reload on fail or not
----
 function WebUI3d2d:ShouldReloadOnFail()
     return self.reload_on_fail
 end
@@ -1140,7 +1081,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the WebUI3d2d is interactable or not
 ---@return boolean @Is the WebUI3d2d interactable?
----
 function WebUI3d2d:IsInteractable()
     if Input.IsMouseEnabled() then
         return self:IsCursorTraceControlEnabled()
@@ -1149,14 +1089,37 @@ function WebUI3d2d:IsInteractable()
     return self:IsCameraTraceControlEnabled()
 end
 
-----------------------------------------------------------------------
+---`🔸 Client`<br>
+---Keeps the WebUI3d2d rendering whatever its distance or view, for a page in use or one finishing an animation in sight. On release it can stay awake a little longer, so the frame left on the mesh once it freezes is the final one
+---@param bAwake boolean @Should the WebUI3d2d stay awake
+---@param iReleaseDelay? integer @On release, milliseconds before it may freeze again (default 0)
+function WebUI3d2d:SetKeepAwake(bAwake, iReleaseDelay)
+    self.keep_awake = (bAwake and true or false)
+
+    if self.keep_awake then
+        self.keep_awake_until = nil
+        if self.ready and self:IsFrozen() then
+            self:SetFreeze(false)
+        end
+    else
+        self.keep_awake_until = (Client.GetTime() + mathMax(0, iReleaseDelay or 0))
+    end
+end
+
+---`🔸 Client`<br>
+---Returns wether the WebUI3d2d is kept awake, by SetKeepAwake or its release delay
+---@return boolean @Is the WebUI3d2d kept awake?
+function WebUI3d2d:IsKeptAwake()
+    if self.keep_awake then return true end
+    return (self.keep_awake_until ~= nil) and (Client.GetTime() < self.keep_awake_until)
+end
+
 -- Cursor related
 ----------------------------------------------------------------------
 
 ---`🔸 Client`<br>
 ---Enable or disable the 3D cursor decal
 ---@param bEnabled boolean @Should the 3D cursor decal be enabled or not
----
 function WebUI3d2d:SetCursorDecalEnabled(bEnabled)
     self.cursor_decal_enabled = (bEnabled and true or false)
 end
@@ -1164,7 +1127,6 @@ end
 ---`🔸 Client`<br>
 ---Returns wether the 3D cursor decal is enabled or not
 ---@return boolean @Is the 3D cursor decal enabled?
----
 function WebUI3d2d:IsCursorDecalEnabled()
     return self.cursor_decal_enabled
 end
@@ -1172,7 +1134,6 @@ end
 ---`🔸 Client`<br>
 ---Returns the 3D cursor decal
 ---@return Decal @The 3D cursor decal
----
 function WebUI3d2d:GetCursorDecal()
     return self.cursor_decal
 end
@@ -1180,7 +1141,6 @@ end
 ---`🔸 Client`<br>
 ---Sets the 3D cursor decal size
 ---@param fSize number @The new size of the 3D cursor decal
----
 function WebUI3d2d:SetCursorSize(fSize)
     if (type(fSize) ~= "number") or (fSize <= 0) then return end
     self.cursor_size = fSize
@@ -1189,14 +1149,13 @@ end
 ---`🔸 Client`<br>
 ---Returns the 3D cursor decal size
 ---@return number @The size of the 3D cursor decal
----
 function WebUI3d2d:GetCursorSize()
     return self.cursor_size or fDefaultCursorSize
 end
 
-----------------------------------------------------------------------
 -- WebUI3d2d wrapper methods
 ----------------------------------------------------------------------
+
 local tSMWrapperMethods = {
     "AttachTo",
     "Detach",
