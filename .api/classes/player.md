@@ -1,13 +1,13 @@
 [ᐊ Return to docs](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/docs.md)
 
-[WebUI3d2d]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/WIKI.md#-constructor
+[WebUI3d2d]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md
 
 [`GetTargetedWebUI3d2d`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/player.md#gettargetedwebui3d2d
 
 # 👩‍💻 Player
 
 > #### 💂 Authority
-> These methods bellow can only be called on [🟧 Client](https://docs.nanos.world/docs/core-concepts/scripting/authority-concepts#client-side)
+> These methods below can only be called on [🟧 Client](https://docs.nanos.world/docs/core-concepts/scripting/authority-concepts#client-side)
 
 > #### 📝 Note
 > These methods only work on the local player

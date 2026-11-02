@@ -8,6 +8,7 @@
 [float]:https://docs.nanos.world/docs/scripting-reference/glossary/basic-types#float
 [Vector]:https://docs.nanos.world/docs/scripting-reference/structs/vector
 [Rotator]:https://docs.nanos.world/docs/scripting-reference/structs/rotator
+[Vector2D]:https://docs.nanos.world/docs/scripting-reference/structs/vector2d
 [HTML Path]:https://docs.nanos.world/docs/next/scripting-reference/classes/webui#html-path-searchers
 [HTML File Path]:https://docs.nanos.world/docs/scripting-reference/classes/webui#html-path-searchers
 [Decal]:https://docs.nanos.world/docs/scripting-reference/classes/decal
@@ -30,6 +31,7 @@ The WebUI3d2d class allows you to create a dynamic 3D web browser with which you
 
 - [🎒 Examples](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#-examples)
 - [🛠 Constructor](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#-constructor)
+- [Enums](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#enums)
 - [🦠 Methods](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#-methods)
 - [🚀 Events](https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#-events)
 
@@ -39,73 +41,119 @@ The WebUI3d2d class allows you to create a dynamic 3D web browser with which you
 #### Spawning a simple WebUI3d2d
 ```lua
 local my_webui = WebUI3d2d(
-    "file://"..Package.GetName().."/Client/my_cool_ui/index.html",      -- Path
-    false,                                                              -- Is transparent?
-    1920,                                                               -- UI width
-    1080,                                                               -- UI height
-    Vector(1.92, 1.08, 1),                                              -- Mesh scale
-    true                                                                -- Attach 3D sound
+    "file://"..Package.GetName().."/Client/my_cool_ui/index.html",      -- URL
+    Vector2D(1920, 1080)                                                -- Page resolution: the plane is sized from it, 192 x 108 cm
 )
+
+my_webui:SetPlaneSize(Vector2D(160, 90))                                -- Or any size, in centimetres
 ```
 
-#### Changing the StaticMesh and the material index used to paint the WebUI3d2d
+#### Playing the page's audio in 3D
+> WebUI3d2d leaves the page's audio to your script: spawn it with WebUI's own `SpawnSound`, 2D or 3D with the ranges you want, and attach it to the mesh
+```lua
+-- Plays the page's audio in 3D from the mesh: full volume within 2 m, silent at 16 m, destroyed with the mesh
+local my_sound = my_webui:SpawnSound(Vector(), false, 1, 200, 1600)
+my_sound:AttachTo(my_webui:GetStaticMesh(), AttachmentRule.SnapToTarget, "", 0, false)
+```
+
+#### Painting the WebUI3d2d on another mesh
 > This can have unforeseen consequences depending on the mesh and the material index used
 ```lua
 local my_webui = WebUI3d2d(
-    "https://www.google.com/",                                          -- Path
-    false,                                                              -- Is transparent?
-    1920,                                                               -- UI width
-    1080,                                                               -- UI height
-    Vector(2),                                                          -- Mesh scale
-    true,                                                               -- Attach 3D sound
-    "nanos-world::SM_TV_Hanging",                                       -- Mesh override
-    1                                                                   -- Material index override
+    "https://www.google.com/",                                          -- URL
+    Vector2D(1920, 1080),                                               -- Page resolution
+    false,                                                              -- Transparent?
+    "nanos-world::SM_TV_Hanging",                                       -- Mesh
+    1                                                                   -- Material slot the page is painted on
 )
+
+-- The mesh can also change later, in place
+my_webui:SetMesh("nanos-world::SM_Plane")
 ```
 
 ---
 
 ## 🛠 Constructor
 ```lua
-local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, sMesh, iMatIndex)
+local my_webui = WebUI3d2d(sURL, tResolution, bTransparent, sMesh, iMaterialIndex)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [HTML Path]           | `sPath`               | `""`                      | Web URL or [HTML File Path] as `file://my_file.html`
-| [boolean]             | `bTransparent`        | `false`                   | Should the WebUI3d2d be transparent
-| [integer]             | `iW`                  | X axis of `tScale`        | The WebUI3d2d width
-| [integer]             | `iH`                  | Y axis of `tScale`        | The WebUI3d2d height
-| [Vector]              | `tScale`              | `Vector(1, 1, 1)`         | The WebUI3d2d mesh scale
-| [boolean]             | `bAttach3DSound`      | `false`                   | Should a 3D sound emitting audio from the UI be attached to this UI
-| [string]              | `sMesh`               | `"nanos-world::SM_Plane"` | The mesh to use for the WebUI3d2d
-| [integer]             | `iMatIndex`           | `-1`                      | The material index to use for the WebUI3d2d
+| [HTML Path]           | `sURL`                | `""`                      | Web URL or [HTML File Path] as `file://my_file.html`
+| [Vector2D]            | `tResolution`         | `Vector2D(1920, 1080)`    | Page resolution in pixels, brought within 240 and 8192 on each side keeping its ratio. Past a 34:1 ratio both can't hold, and the short side's 240 wins
+| [boolean]             | `bTransparent`        | `false`                   | Should the page's transparent parts show through
+| [string]              | `sMesh`               | `"nanos-world::SM_Plane"` | Mesh the page is painted on. The default plane is sized from the resolution, 10 pixels per centimetre (see [`SetPlaneSize`]); another mesh keeps a scale of 1 (see [`SetScale`])
+| [integer]             | `iMaterialIndex`      | `-1`                      | Material slot of the mesh the page is painted on, `-1` for every slot
+
+---
+
+## Enums
+[`WebUI3d2dTargeting`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#webui3d2dtargeting
+[`WebUI3d2dInput`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#webui3d2dinput
+[`WebUI3d2dKeyboardCapture`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#webui3d2dkeyboardcapture
+
+> `WebUI3d2dTargeting` and `WebUI3d2dInput` are flags: combine values with `|`, e.g. `WebUI3d2dInput.Keyboard | WebUI3d2dInput.Mouse` (which is `WebUI3d2dInput.All`)
+
+#### `WebUI3d2dTargeting`
+> Controls a WebUI3d2d can be targeted with, see [`SetTargeting`]
+
+| Name          | Value | Description
+| -             |:-     |:-
+| `None`        | `0`   | Can't be targeted
+| `Cursor`      | `1`   | The mouse cursor, while the mouse is enabled
+| `Camera`      | `2`   | Aiming the camera (the center of the view), while the mouse is disabled
+| `All`         | `3`   | Both (default)
+
+#### `WebUI3d2dInput`
+> Game inputs, see [`SetBlockedGameInput`]
+
+| Name          | Value | Description
+| -             |:-     |:-
+| `None`        | `0`   | No input
+| `Keyboard`    | `1`   | Keys, only while the WebUI3d2d captures the keyboard (see [`SetKeyboardCapture`])
+| `Mouse`       | `2`   | Mouse clicks and scroll
+| `All`         | `3`   | Keyboard and mouse (default of [`SetBlockedGameInput`])
+
+#### `WebUI3d2dKeyboardCapture`
+> When a targeted WebUI3d2d captures the keyboard, taking keys from the game, see [`SetKeyboardCapture`]
+
+| Name          | Value | Description
+| -             |:-     |:-
+| `Off`         | `0`   | Never, keys always reach the game
+| `OnClick`     | `1`   | From a click on the WebUI3d2d until it's untargeted or Escape is pressed (default)
+| `Always`      | `2`   | Whenever the WebUI3d2d is targeted, even by just looking at it
 
 ---
 
 ## 🦠 Methods
 
 #### WebUI3d2d methods
-[`GetAttachedSound`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getattachedsound
+[`GetBlockedGameInput`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getblockedgameinput
 [`GetCursorDecal`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getcursordecal
-[`GetCursorSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getcursorsize
+[`GetCursorDecalSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getcursordecalsize
+[`GetCursorPosition`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getcursorposition
+[`GetKeyboardCapture`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getkeyboardcapture
+[`GetMaterialIndex`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getmaterialindex
+[`GetPlaneSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getplanesize
 [`GetStaticMesh`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#getstaticmesh
-[`IsCameraTraceControlEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscameratracecontrolenabled
-[`IsCursorTraceControlEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursortracecontrolenabled
+[`GetTargeting`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#gettargeting
+[`GetURL`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#geturl
 [`IsCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iscursordecalenabled
 [`IsInteractable`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#isinteractable
 [`IsKeptAwake`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeptawake
-[`IsMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#ismouseeventsenabled
-[`IsKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardeventsenabled
-[`IsKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#iskeyboardinputenabled
+[`IsReloadOnFailEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#isreloadonfailenabled
+[`LoadURL`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#loadurl
 [`MakeNoSignal`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#makenosignal
-[`SetCameraTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcameratracecontrol
-[`SetCursorTraceControl`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursortracecontrol
+[`SetBlockedGameInput`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setblockedgameinput
 [`SetCursorDecalEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursordecalenabled
-[`SetCursorSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursorsize
+[`SetCursorDecalSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setcursordecalsize
+[`SetFreeze`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setfreeze
 [`SetKeepAwake`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeepawake
-[`SetMouseEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setmouseeventsenabled
-[`SetKeyboardEventsEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardeventsenabled
-[`SetKeyboardInputEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardinputenabled
+[`SetKeyboardCapture`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setkeyboardcapture
+[`SetMesh`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setmesh
+[`SetPlaneSize`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setplanesize
+[`SetReloadOnFailEnabled`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#setreloadonfailenabled
+[`SetTargeting`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#settargeting
 
 [`AddMouseAliasKey`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#addmousealiaskey
 [`RemoveMouseAliasKey`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#removemousealiaskey
@@ -116,27 +164,32 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 
 | Returns               | Name                                  | Description
 | -                     |:-                                     |:-
-| [Sound]               | [`GetAttachedSound`]                  | Get the WebUI3d2d attached sound
-| [Decal]               | [`GetCursorDecal`]                    | Returns the cursor decal
-| [float]               | [`GetCursorSize`]                     | Returns the cursor decal size
+| [`WebUI3d2dInput`]    | [`GetBlockedGameInput`]               | Returns the game inputs kept from firing while the WebUI3d2d is targeted
+| [StaticMesh]          | [`GetCursorDecal`]                    | Returns the 3D cursor
+| [float]               | [`GetCursorDecalSize`]                | Returns the 3D cursor size
+| [Vector2D]            | [`GetCursorPosition`]                 | Returns the cursor's position on the page, in pixels
+| [`WebUI3d2dKeyboardCapture`] | [`GetKeyboardCapture`]                | Returns when the WebUI3d2d captures the keyboard
+| [integer]             | [`GetMaterialIndex`]                  | Returns the material index the page is painted on
+| [Vector2D]            | [`GetPlaneSize`]                      | Returns the default plane's size in centimetres
 | [StaticMesh]          | [`GetStaticMesh`]                     | Get the WebUI3d2d parent mesh
-| [boolean]             | [`IsCameraTraceControlEnabled`]       | Returns wether the camera trace control is enabled or not
-| [boolean]             | [`IsCursorTraceControlEnabled`]       | Returns wether the cursor trace control is enabled or not
-| [boolean]             | [`IsCursorDecalEnabled`]              | Returns wether the 3D cursor decal is enabled or not
-| [boolean]             | [`IsInteractable`]                    | Returns wether the WebUI3d2d is interactable or not
-| [boolean]             | [`IsKeptAwake`]                       | Returns wether the WebUI3d2d is kept awake or not
-| [boolean]             | [`IsKeyboardInputEnabled`]            | Returns wether the WebUI3d2d accept keyboard input or not
-| [boolean]             | [`IsKeyboardEventsEnabled`]           | Returns wether the WebUI3d2d allow keyboard events or not
-| [boolean]             | [`IsMouseEventsEnabled`]              | Returns wether the WebUI3d2d allow mouse events or not
+| [`WebUI3d2dTargeting`] | [`GetTargeting`]                      | Returns the controls the WebUI3d2d can be targeted with
+| [string]              | [`GetURL`]                            | Returns the URL the WebUI3d2d last loaded
+| [boolean]             | [`IsCursorDecalEnabled`]              | Returns whether the 3D cursor decal is enabled
+| [boolean]             | [`IsInteractable`]                    | Returns whether the WebUI3d2d can be targeted with the current control
+| [boolean]             | [`IsKeptAwake`]                       | Returns whether the WebUI3d2d is kept awake
+| [boolean]             | [`IsReloadOnFailEnabled`]             | Returns whether the page reloads when it fails to load
+|                       | [`LoadURL`]                           | Load a URL in the page
 |                       | [`MakeNoSignal`]                      | Set the WebUI3d2d to a "no signal" state
-|                       | [`SetCameraTraceControl`]             | Enable or disable the camera trace control
-|                       | [`SetCursorTraceControl`]             | Enable or disable the cursor trace control
+|                       | [`SetBlockedGameInput`]               | Set the game inputs kept from firing while the WebUI3d2d is targeted
 |                       | [`SetCursorDecalEnabled`]             | Enable or disable the 3D cursor decal
-|                       | [`SetCursorSize`]                     | Set the cursor decal size
+|                       | [`SetCursorDecalSize`]                | Set the 3D cursor size
+|                       | [`SetFreeze`]                         | Freeze or resume the page's rendering
 |                       | [`SetKeepAwake`]                      | Keep the WebUI3d2d rendering whatever its distance or view
-|                       | [`SetKeyboardInputEnabled`]           | Enable or disable the keyboard input
-|                       | [`SetKeyboardEventsEnabled`]          | Enable or disable the keyboard events
-|                       | [`SetMouseEventsEnabled`]             | Enable or disable the mouse events
+|                       | [`SetKeyboardCapture`]                | Set when the WebUI3d2d captures the keyboard
+|                       | [`SetMesh`]                           | Change the mesh the page is painted on
+|                       | [`SetPlaneSize`]                      | Set the default plane's size in centimetres
+|                       | [`SetReloadOnFailEnabled`]            | Enable or disable reloading the page when it fails to load
+|                       | [`SetTargeting`]                      | Set the controls the WebUI3d2d can be targeted with
 |                       | [`AddMouseAliasKey`]                  | Add a key to the mouse aliases
 |                       | [`RemoveMouseAliasKey`]               | Remove a key from the mouse aliases
 | [table]               | [`GetAllMouseAliasKeys`]              | Get the mouse aliases table
@@ -150,9 +203,12 @@ local my_webui = WebUI3d2d(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, 
 [`GetLocation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-getlocation
 [`GetRotation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-getrotation
 [`GetScale`]:https://docs.nanos.world/docs/next/scripting-reference/classes/base-classes/actor#function-getscale
+[`GetScreenPercentage`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-getscreenpercentage
 [`SetLifeSpan`]:https://docs.nanos.world/docs/next/scripting-reference/classes/base-classes/actor#function-setlifespan
 [`SetLocation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-setlocation
 [`SetRotation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-setrotation
+[`SetRelativeLocation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-setrelativelocation
+[`SetRelativeRotation`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-setrelativerotation
 [`SetScale`]:https://docs.nanos.world/docs/next/scripting-reference/classes/base-classes/actor#function-setscale
 [`RotateTo`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-rotateto
 [`TranslateTo`]:https://docs.nanos.world/docs/scripting-reference/classes/base-classes/actor#function-translateto
@@ -171,73 +227,115 @@ my_webui:GetStaticMesh():GetLocation()
 | -                     |:-                                     |:-
 |                       | [`AttachTo`]                          | Attaches this WebUI3d2d to any other Actor, optionally at a specific bone
 |                       | [`Detach`]                            | Detaches this WebUI3d2d from AttachedTo Actor
+| Actor                 | [`GetAttachedTo`]                     | Returns the Actor this WebUI3d2d is attached to
 | [table]               | [`GetBounds`]                         | Returns this WebUI3d2d bounds
 | [Vector]              | [`GetLocation`]                       | Returns this WebUI3d2d location in the game world
 | [Rotator]             | [`GetRotation`]                       | Returns this WebUI3d2d rotation in the game world
 |                       | [`SetLifeSpan`]                       | Sets the time (in seconds) before this WebUI3d2d is destroyed
 | [Vector]              | [`GetScale`]                          | Returns this WebUI3d2d scale
+| [number]              | [`GetScreenPercentage`]               | Returns how much of the screen this WebUI3d2d fills
+|                       | [`RotateTo`]                          | Smoothly rotates this WebUI3d2d to a rotation over time
 |                       | [`SetLocation`]                       | Set this WebUI3d2d location in the game world
 |                       | [`SetRotation`]                       | Set this WebUI3d2d rotation in the game world
+|                       | [`SetRelativeLocation`]               | Set this WebUI3d2d location relative to the Actor it's attached to
+|                       | [`SetRelativeRotation`]               | Set this WebUI3d2d rotation relative to the Actor it's attached to
 |                       | [`SetScale`]                          | Set this WebUI3d2d scale
+|                       | [`TranslateTo`]                       | Smoothly moves this WebUI3d2d to a location over time
 | [boolean]             | [`WasRecentlyRendered`]               | Returns `true` if this WebUI3d2d was recently rendered on screen
 
 ##
-#### `GetAttachedSound`
-> Get the 3D attached sound
+#### `GetBlockedGameInput`
+> Returns the game inputs kept from firing while the WebUI3d2d is targeted
 >
-> Returns [Sound]
+> Returns [`WebUI3d2dInput`] flags
 ```lua
-local ret = my_webui:GetAttachedSound()
+local ret = my_webui:GetBlockedGameInput()
 ```
 
 ##
 #### `GetCursorDecal`
-> Returns the cursor decal
+> Returns the 3D cursor, a small plane laid on the WebUI3d2d's mesh (a decal wouldn't draw on a WebUI), `nil` until the cursor first moves on the targeted WebUI3d2d
 >
-> Returns [Decal]
+> Returns [StaticMesh]
 ```lua
 local ret = my_webui:GetCursorDecal()
 ```
 
 ##
-#### `GetCursorSize`
-> Returns the cursor decal size
+#### `GetCursorDecalSize`
+> Returns the 3D cursor size: half its width, in cm
 >
 > Returns [float]
 ```lua
-local ret = my_webui:GetCursorSize()
+local ret = my_webui:GetCursorDecalSize()
+```
+
+##
+#### `GetCursorPosition`
+> Returns the cursor's position on the page, in pixels: `(0, 0)` while the WebUI3d2d isn't targeted
+>
+> Returns [Vector2D]
+```lua
+local ret = my_webui:GetCursorPosition()
+```
+
+##
+#### `GetKeyboardCapture`
+> Returns when the WebUI3d2d captures the keyboard while it's targeted
+>
+> Returns [`WebUI3d2dKeyboardCapture`]
+```lua
+local ret = my_webui:GetKeyboardCapture()
+```
+
+##
+#### `GetMaterialIndex`
+> Returns the material index of the mesh the page is painted on (`-1` for every slot)
+>
+> Returns [integer]
+```lua
+local ret = my_webui:GetMaterialIndex()
+```
+
+##
+#### `GetPlaneSize`
+> Returns the default plane's size in centimetres, `nil` on another mesh
+>
+> Returns [Vector2D]
+```lua
+local ret = my_webui:GetPlaneSize()
 ```
 
 ##
 #### `GetStaticMesh`
 > Get the StaticMesh on which the WebUI3d2d is painted
-> 
+>
 > Returns [StaticMesh]
 ```lua
 local ret = my_webui:GetStaticMesh()
 ```
 
 ##
-#### `IsCameraTraceControlEnabled`
-> Returns wether the camera trace control is enabled or not
+#### `GetTargeting`
+> Returns the controls the WebUI3d2d can be targeted with
 >
-> Returns [boolean]
+> Returns [`WebUI3d2dTargeting`] flags
 ```lua
-local ret = my_webui:IsCameraTraceControlEnabled()
+local ret = my_webui:GetTargeting()
 ```
 
 ##
-#### `IsCursorTraceControlEnabled`
-> Returns wether the cursor trace control is enabled or not
+#### `GetURL`
+> Returns the URL the WebUI3d2d last loaded
 >
-> Returns [boolean]
+> Returns [string]
 ```lua
-local ret = my_webui:IsCursorTraceControlEnabled()
+local ret = my_webui:GetURL()
 ```
 
 ##
 #### `IsCursorDecalEnabled`
-> Returns wether the 3D cursor decal is enabled or not
+> Returns whether the 3D cursor decal is enabled
 >
 > Returns [boolean]
 ```lua
@@ -246,10 +344,9 @@ local ret = my_webui:IsCursorDecalEnabled()
 
 ##
 #### `IsInteractable`
-> Returns wether the WebUI3d2d is interactable or not
->> If hardware cursor is enabled it'll return the result of [`IsCursorTraceControlEnabled`]
-<br> Otherwise it'll return the result of [`IsCameraTraceControlEnabled`]
-<br> To take input, the WebUI3d2d's bounds diagonal, laid across the view where the cursor hits it, must also span at least a quarter of the view's width (its size, distance and the lens all count, not its page resolution): at a 90° FOV that's within 4 times `GetBounds().BoxExtent:Size()`
+> Returns whether the WebUI3d2d can be targeted with the current control
+>> While the mouse is enabled it checks `WebUI3d2dTargeting.Cursor` in [`GetTargeting`], otherwise `WebUI3d2dTargeting.Camera`
+<br> To take input, the WebUI3d2d must also fill enough of the view: a [`GetScreenPercentage`] of `0.5` or more, about a quarter of the view's width at a 90° FOV (its size, distance and the lens all count, not its page resolution)
 >
 > Returns [boolean]
 ```lua
@@ -266,31 +363,23 @@ local ret = my_webui:IsKeptAwake()
 ```
 
 ##
-#### `IsKeyboardInputEnabled`
-> Returns wether the WebUI3d2d accept keyboard input or not
+#### `IsReloadOnFailEnabled`
+> Returns whether the WebUI3d2d reloads its page when it fails to load
 >
 > Returns [boolean]
 ```lua
-local ret = my_webui:IsKeyboardInputEnabled()
+local ret = my_webui:IsReloadOnFailEnabled()
 ```
 
 ##
-#### `IsKeyboardEventsEnabled`
-> Returns wether the WebUI3d2d allow keyboard events or not
->
-> Returns [boolean]
+#### `LoadURL`
+> Load a URL in the page. Only local pages (`file://`) and web URLs (`http://`, `https://` or `www.`) load; anything else shows the "no signal" noise. A page that fails to load reloads this URL (see [`SetReloadOnFailEnabled`])
 ```lua
-local ret = my_webui:IsKeyboardEventsEnabled()
+my_webui:LoadURL(sURL)
 ```
-
-##
-#### `IsMouseEventsEnabled`
-> Returns wether the WebUI3d2d allow mouse events or not
->
-> Returns [boolean]
-```lua
-local ret = my_webui:IsMouseEventsEnabled()
-```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [string]              | `sURL`                |                           | Web URL, or local page as `file://my_page.html`
 
 ##
 #### `MakeNoSignal`
@@ -300,28 +389,18 @@ my_webui:MakeNoSignal()
 ```
 
 ##
-#### `SetCameraTraceControl`
-> Enable or disable the camera trace control (enabled by default)
+#### `SetBlockedGameInput`
+> Set the game inputs kept from firing while the WebUI3d2d is targeted; the others reach the game as well as the WebUI3d2d (`WebUI3d2dInput.All` by default). Keys are only kept from the game while the WebUI3d2d captures the keyboard, see [`SetKeyboardCapture`]
 ```lua
-my_webui:SetCameraTraceControl(bEnabled)
+my_webui:SetBlockedGameInput(iInputs)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | Should the camera trace control be enabled or not
-
-##
-#### `SetCursorTraceControl`
-> Enable or disable the mouse trace control (enabled by default)
-```lua
-my_webui:SetCursorTraceControl(bEnabled)
-```
-| Type                  | Name                  | Default                   | Description
-| -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | Should the mouse trace control be enabled or not
+| [`WebUI3d2dInput`]    | `iInputs`             |                           | Flags, e.g. `WebUI3d2dInput.Mouse` to let keys through
 
 ##
 #### `SetCursorDecalEnabled`
-> Enable or disable the 3D cursor decal (enabled by default)
+> Enable or disable the 3D cursor decal (enabled by default). It shows with either targeting control, so turn it off where the mouse cursor already marks the spot. Turned off, the decal goes at once; turned on, it shows on the next cursor move
 ```lua
 my_webui:SetCursorDecalEnabled(bEnabled)
 ```
@@ -330,14 +409,24 @@ my_webui:SetCursorDecalEnabled(bEnabled)
 | [boolean]             | `bEnabled`            |                           | Should the 3D cursor decal be enabled or not
 
 ##
-#### `SetCursorSize`
-> Set the cursor decal size
+#### `SetCursorDecalSize`
+> Set the 3D cursor size: half its width, in cm (`1.2` by default)
 ```lua
-my_webui:SetCursorSize(fSize)
+my_webui:SetCursorDecalSize(fSize)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [float]               | `fSize`               |                           | The new size of the cursor decal
+| [float]               | `fSize`               |                           | Half the 3D cursor's width, in cm
+
+##
+#### `SetFreeze`
+> Freeze or resume the page's rendering to the mesh; its JavaScript keeps running either way. Calls [`OnWebUI3d2dFreezeChange`] when the state changes. WebUI3d2d freezes pages out of view or out of range, and resumes them, on its own: use [`SetKeepAwake`] to keep one rendering
+```lua
+my_webui:SetFreeze(bFreeze)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bFreeze`             |                           | Should the rendering be frozen
 
 ##
 #### `SetKeepAwake`
@@ -351,34 +440,55 @@ my_webui:SetKeepAwake(bAwake, iReleaseDelay)
 | [integer]             | `iReleaseDelay`       | `0`                       | On release, milliseconds before it may freeze again
 
 ##
-#### `SetKeyboardInputEnabled`
-> Enable or disable the keyboard input (enabled by default)
+#### `SetKeyboardCapture`
+> Set when the WebUI3d2d captures the keyboard while it's targeted, taking keys from the game (`WebUI3d2dKeyboardCapture.OnClick` by default): with `OnClick`, looking at or pointing at a WebUI3d2d never captures the keyboard, a click on it does, until it's untargeted or Escape is pressed
 ```lua
-my_webui:SetKeyboardInputEnabled(bEnabled)
+my_webui:SetKeyboardCapture(iMode)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | The new size of the cursor decal
+| [`WebUI3d2dKeyboardCapture`] | `iMode`               |                           | When the WebUI3d2d captures the keyboard
 
 ##
-#### `SetKeyboardEventsEnabled`
-> Enable or disable the keyboard events (disabled by default)
+#### `SetMesh`
+> Change the mesh the page is painted on. The mesh changes in place, keeping its location, its attachment and what's attached to it; its scale resets: the default plane to its size from the page resolution, another mesh to 1
 ```lua
-my_webui:SetKeyboardEventsEnabled(bEnabled)
+my_webui:SetMesh(sMesh, iMaterialIndex)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d (targeted) allow keyboard events to be triggered or not
+| [string]              | `sMesh`               | `"nanos-world::SM_Plane"` | Mesh asset, `nil` for the default plane
+| [integer]             | `iMaterialIndex`      | `-1`                      | Material slot of the mesh the page is painted on, `-1` for every slot
 
 ##
-#### `SetMouseEventsEnabled`
-> Enable or disable the mouse events (disabled by default)
+#### `SetPlaneSize`
+> Set the default plane's size in centimetres. The page keeps its resolution, so a size off its ratio stretches it. Does nothing on another mesh, which [`SetScale`] sizes
 ```lua
-my_webui:SetMouseEventsEnabled(bEnabled)
+my_webui:SetPlaneSize(tSize)
 ```
 | Type                  | Name                  | Default                   | Description
 | -                     |:-                     |:-                         |:-
-| [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d (targeted) allow mouse events to be triggered or not
+| [Vector2D]            | `tSize`               |                           | Width and height in centimetres
+
+##
+#### `SetReloadOnFailEnabled`
+> Enable or disable reloading the page 2 seconds after it fails to load (enabled by default)
+```lua
+my_webui:SetReloadOnFailEnabled(bEnabled)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [boolean]             | `bEnabled`            |                           | Should the WebUI3d2d reload on fail
+
+##
+#### `SetTargeting`
+> Set the controls the WebUI3d2d can be targeted with (`WebUI3d2dTargeting.All` by default)
+```lua
+my_webui:SetTargeting(iTargeting)
+```
+| Type                  | Name                  | Default                   | Description
+| -                     |:-                     |:-                         |:-
+| [`WebUI3d2dTargeting`] | `iTargeting`          |                           | Flags, e.g. `WebUI3d2dTargeting.Cursor`
 
 ##
 #### `AddMouseAliasKey`
@@ -429,10 +539,12 @@ local ret = my_webui:GetMouseAliasKey("E")
 
 ## 🚀 Events
 [`OnWebUI3d2dTargetChange`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#onwebui3d2dtargetchange
+[`OnWebUI3d2dFreezeChange`]:https://github.com/Timmy-the-nobody/WebUI3d2d/blob/main/.api/classes/webui3d2d.md#onwebui3d2dfreezechange
 
 | Name                              | Description
 | -                                 |:-
 | [`OnWebUI3d2dTargetChange`]       | Triggered when a WebUI3d2d is targeted or untargeted
+| [`OnWebUI3d2dFreezeChange`]       | Triggered when a WebUI3d2d's rendering freezes or resumes
 
 ##
 #### `OnWebUI3d2dTargetChange`
@@ -446,3 +558,16 @@ end)
 | -                                 |:-                         |:-
 | [WebUI3d2d] or [boolean]          | `xOldWebUI`               | The previously targeted UI, `false` if inexistent
 | [WebUI3d2d] or [boolean]          | `xNewWebUI`               | The new targeted UI, `false` on untarget
+
+##
+#### `OnWebUI3d2dFreezeChange`
+> Triggered when a WebUI3d2d's rendering freezes or resumes. The page's JavaScript keeps running while it's frozen, so the script owning the page can forward this to it to pause its animations and timers
+```lua
+Events.Subscribe("OnWebUI3d2dFreezeChange", function(oWebUI, bFrozen)
+
+end)
+```
+| Type                              | Argument                  | Description
+| -                                 |:-                         |:-
+| [WebUI3d2d]                       | `oWebUI`                  | The UI whose rendering froze or resumed
+| [boolean]                         | `bFrozen`                 | `true` once frozen, `false` once rendering again
