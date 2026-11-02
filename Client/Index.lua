@@ -9,46 +9,116 @@ local mathMax = math.max
 local mathMin = math.min
 local mathFloor = math.floor
 
+local ipairs = ipairs
+local pairs = pairs
+
 local Client = Client
 local Input = Input
-
-local lerpVector = NanosMath.VInterpTo
 local localPlayer = Client.GetLocalPlayer
 local traceLineSingle = Trace.LineSingle
 local getMousePosition = Viewport.GetMousePosition
 local deprojectScreenToWorld = Viewport.DeprojectScreenToWorld
-local projectWorldToScreen = Viewport.ProjectWorldToScreen
-local getViewportSize = Viewport.GetViewportSize
 
 -- Dynamic vars (Internal)
 local oTargetUI = false
-local bDebugCommands = false
-local iNextTargetLookup = 0
-local iNextFreezeHandle = 0
+local bKeyboardEngaged = false -- A click on the target makes it capture the keyboard (WebUI3d2dKeyboardCapture.OnClick)
+local tInstances = {} -- Live WebUI3d2d set, so the lookup and freeze checks don't copy WebUI3d2d.GetAll() out of the engine
+local iLastLookupTime = 0
 
--- Static (render)
-local iMinUISize = 240                                                                          -- Minimum size in pixels of a WebUI3d2d page
-local iMaxUISize = 8192                                                                         -- Maximum size in pixels of a WebUI3d2d page
-local fDefaultCursorSize = 1.2                                                                  -- Default cursor size (if not changed by `SetCursorSize`)
-local iCursorHideDelay = 3000                                                                   -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
-local sCursorTexture = "package://"..Package.GetName().."/Client/resources/cursor.png"          -- Path to the cursor texture
-local sDefaultMesh = "nanos-world::SM_Plane"                                                    -- Default WebUI3d2d mesh
-local fPlaneSize = 100                                                                          -- Size of the default mesh in cm before scale, U along X and V along Y from its -X -Y corner
-
--- Static (performance) 
-local iTargetTickRate = 12                                                                      -- Tick rate when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
-local iTargetIdleTickRate = 4                                                                   -- Tick rate when no WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
-local fMinScreenShare = 0.25                                                                    -- Share of the view's width a WebUI3d2d's bounds diagonal must span where it's hit to take input (within 4 times BoxExtent:Size() at a 90° FOV)
-local fFreezeFromDist = 4                                                                       -- Distance from the targeted WebUI3d2d at which the UI will freeze ((width + height) * VALUE)
-local iFreezeCheckDelay = 1000                                                                  -- Delay between freeze checks (don't set it too low or it will cause performance issues)
-
--- Local and remote URL regex
-local sLocalURLPrefixRegex = [[^file://]]                                                       -- Regex to match local URL
-local tValidRemoteURLPrefix = {"http://www.", "https://www.", "http://", "https://", "www."}    -- List of valid remote URL start
+-- Prefix of a local URL, and the prefixes a remote URL may start with
+local sLocalURLPrefix = "file://"
+local tRemoteURLPrefixes = {"http://", "https://", "www."}
 
 -- Static vars (internal)
 local iCollisionChannel = CollisionChannel.WorldStatic
 local iTraceMode = TraceMode.TraceComplex | TraceMode.ReturnEntity | TraceMode.ReturnUV
+local tNoActors = {}
+local tCursorIgnored = {}
+
+-- Static (render)
+local MIN_UI_SIZE = 240                                                                 -- Minimum size in pixels of a WebUI3d2d page
+local MAX_UI_SIZE = 8192                                                                -- Maximum size in pixels of a WebUI3d2d page
+local DEFAULT_CURSOR_DECAL_SIZE = 1.2                                                   -- Default 3D cursor size, half its width in cm (if not changed by `SetCursorDecalSize`)
+local CURSOR_HIDE_DELAY = 3000                                                          -- Delay in milliseconds before hiding the cursor decal when invactive (0 or less to disable)
+local CURSOR_TEXTURE = "package://"..Package.GetName().."/Client/resources/cursor.png"  -- Path to the cursor texture
+local CURSOR_MATERIAL = "nanos-world::M_Default_Masked_Unlit"                           -- Material of the 3D cursor, a plane: WebUI materials take no decals
+local CURSOR_OFFSET = 0.1                                                               -- Distance in cm the 3D cursor floats in front of the mesh
+local DEFAULT_MESH = "nanos-world::SM_Plane"                                            -- Default WebUI3d2d mesh
+local PLANE_SIZE = 100                                                                  -- Size of nanos-world::SM_Plane (the default mesh and the 3D cursor) in cm before scale, U along X and V along Y from its -X -Y corner
+local DEFAULT_RESOLUTION = Vector2D(1920, 1080)                                         -- Page resolution when the constructor gets none
+local PLANE_PIXELS_PER_CM = 10                                                          -- Default plane size from the page resolution: 1920 x 1080 px make a 192 x 108 cm plane
+
+-- Static (performance)
+local TARGET_TICK_RATE = 10         -- Target lookups per second when a WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
+local TARGET_IDLE_TICK_RATE = 4     -- Target lookups per second when no WebUI3d2d is targeted (don't set it too high, it will cause performance issues)
+local MIN_SCREEN_PERCENTAGE = 0.5   -- GetScreenPercentage() of the mesh needed to take input: about a quarter of the view's width at a 90° FOV, a bit more with narrower lenses
+local FREEZE_FROM_DIST = 4          -- Distance from the targeted WebUI3d2d at which the UI will freeze ((width + height) * VALUE)
+local FREEZE_CHECK_DELAY = 1000     -- Delay between freeze checks (don't set it too low or it will cause performance issues)
+
+-- Enums
+----------------------------------------------------------------------
+
+---@enum WebUI3d2dTargeting
+---`🔸 Client`<br>
+---Controls a WebUI3d2d can be targeted with: the mouse cursor while the mouse is enabled, aiming the camera while it's disabled. Flags, `All` is `Cursor | Camera`
+WebUI3d2dTargeting = {
+    None = 0,
+    Cursor = 1,
+    Camera = 2,
+    All = 3
+}
+
+---@enum WebUI3d2dInput
+---`🔸 Client`<br>
+---Game inputs. Flags, `All` is `Keyboard | Mouse`
+WebUI3d2dInput = {
+    None = 0,
+    Keyboard = 1,
+    Mouse = 2,
+    All = 3
+}
+
+---@enum WebUI3d2dKeyboardCapture
+---`🔸 Client`<br>
+---When a targeted WebUI3d2d captures the keyboard, taking keys from the game
+WebUI3d2dKeyboardCapture = {
+    Off = 0,
+    OnClick = 1,
+    Always = 2
+}
+
+Package.Export("WebUI3d2dTargeting", WebUI3d2dTargeting)
+Package.Export("WebUI3d2dInput", WebUI3d2dInput)
+Package.Export("WebUI3d2dKeyboardCapture", WebUI3d2dKeyboardCapture)
+
+---Bits of every value of a flags enum
+---@param tEnum table<string, integer>
+---@return integer
+local function getFlagsMask(tEnum)
+    local iMask = 0
+    for _, iValue in pairs(tEnum) do
+        iMask = (iMask | iValue)
+    end
+    return iMask
+end
+
+---Lowest and highest value of an enum
+---@param tEnum table<string, integer>
+---@return integer @Lowest value
+---@return integer @Highest value
+local function getEnumRange(tEnum)
+    local iMin, iMax
+    for _, iValue in pairs(tEnum) do
+        iMin = iMin and mathMin(iMin, iValue) or iValue
+        iMax = iMax and mathMax(iMax, iValue) or iValue
+    end
+    return iMin, iMax
+end
+
+-- Computed once, so the setters' checks follow the enums when values are added
+local iTargetingMask = getFlagsMask(WebUI3d2dTargeting)
+local iGameInputMask = getFlagsMask(WebUI3d2dInput)
+local iKeyboardCaptureMin, iKeyboardCaptureMax = getEnumRange(WebUI3d2dKeyboardCapture)
 
 local tASCIICharsRange = {
     {32, 126},
@@ -86,13 +156,10 @@ local tTranslateMouseButtons = {
     {button = "MiddleMouseButton", webuimodifier = WebUIModifier.MiddleMouseButton}
 }
 
---[[
-    Special keys dictionary
-    This table contains all the special treatment for some key names
-
-    ASCII: The ASCII code of the key, will not trigger Up/Down events, will only send the Char event
-    code: The code of the key, will only trigger Up/Down events, will not send the Char event
-]]--
+---Special keys dictionary.
+---This table contains all the special treatment for some key names
+---ASCII: The ASCII code of the key, will not trigger Up/Down events, will only send the Char event
+---code: The code of the key, will only trigger Up/Down events, will not send the Char event
 local tSpecialKeys = {
     -- AZERTY only characters
     ["Ampersand"] =         {ASCII = "&"},
@@ -145,33 +212,13 @@ local tSpecialKeys = {
     ["F12"] =               {code = 123}
 }
 
--- Debug
-----------------------------------------------------------------------
-
-if bDebugCommands then
-    -- webui3d2d_spawn
-    Console.RegisterCommand("webui3d2d_spawn", function()
-        local pPlayer = localPlayer()
-        if not pPlayer then return end
-
-        local tCamLoc = pPlayer:GetCameraLocation()
-        local tCamRot = pPlayer:GetCameraRotation()
-
-        local oTestUI = WebUI3d2d("www.google.com", false, 1920, 1080, Vector(1.92, 1.08, 1), true)
-        oTestUI:SetLocation(tCamLoc + (tCamRot:GetForwardVector() * 2000) - Vector(0, 0, 40))
-        oTestUI:TranslateTo(tCamLoc + (tCamRot:GetForwardVector() * 400) - Vector(0, 0, 40), 0.5, 0)
-
-        oTestUI:SetRotation(Rotator(0, tCamRot.Yaw + 90, 359))
-        oTestUI:RotateTo(Rotator(0, tCamRot.Yaw + 90, 80), 1, 0)
-    end, "Spawns a WebUI3d2d")
-end
-
 -- Internal utils (inputs related)
 ----------------------------------------------------------------------
 
 ---Translate key modifiers and mouse buttons to CEF modifiers
+---@param oWebUI WebUI3d2d @The WebUI3d2d the event goes to
 ---@return WebUIModifier @The WebUIModifier integer
-local function getWebUIModifiers()
+local function getWebUIModifiers(oWebUI)
     local iKeyModifiers = Input.GetModifierKeys()
     local iWebUIModifiers = WebUIModifier.None
 
@@ -181,8 +228,10 @@ local function getWebUIModifiers()
         end
     end
 
+    -- The buttons held on it, as the mouse handlers track them, rather than asking the engine for each
+    local tDownButtons = oWebUI.__down_mouse_buttons
     for _, v in ipairs(tTranslateMouseButtons) do
-        if Input.IsKeyDown(v.button) then
+        if tDownButtons[v.button] then
             iWebUIModifiers = iWebUIModifiers | v.webuimodifier
         end
     end
@@ -191,7 +240,11 @@ local function getWebUIModifiers()
 end
 
 local function isLetter(sInput)
-    return (#sInput == 1) and (sInput:match("[A-Za-z]") ~= nil)
+    if (#sInput ~= 1) then return false end
+
+    -- A-Z, a-z
+    local iByte = sInput:byte()
+    return ((iByte >= 65) and (iByte <= 90)) or ((iByte >= 97) and (iByte <= 122))
 end
 
 local function isCapsLockOn()
@@ -258,17 +311,17 @@ end
 ----------------------------------------------------------------------
 
 local function isRemoteURL(sURL)
-    if type(sURL) ~= "string" then return end
+    if (type(sURL) ~= "string") then return false end
 
-    for _, sStart in ipairs(tValidRemoteURLPrefix) do
-        if sURL:find('^'..sStart) then
-            return true
-        end
+    for _, sPrefix in ipairs(tRemoteURLPrefixes) do
+        if (sURL:sub(1, #sPrefix) == sPrefix) then return true end
     end
+
+    return false
 end
 
 local function isLocalURL(sURL)
-    return (type(sURL) == "string") and (sURL:match(sLocalURLPrefixRegex) ~= nil)
+    return (type(sURL) == "string") and (sURL:sub(1, #sLocalURLPrefix) == sLocalURLPrefix)
 end
 
 ---Setup the material parameters of an actor, used for 3d2d rendering
@@ -278,18 +331,20 @@ local function setupMaterialParams(xActor)
     xActor:SetMaterialScalarParameter("Specular", 0)
     xActor:SetMaterialScalarParameter("Roughness", 1)
     xActor:SetMaterialColorParameter("Normal", Color(0))
-    xActor:SetMaterialColorParameter("Emissive", Color(0.2))
+    xActor:SetMaterialColorParameter("Emissive", Color(0))
 end
 
 ---Freeze WebUI3d2d objects that are not in the player's view or range
 local function calcFreezeStates()
+    if (next(tInstances) == nil) then return end
+
     local pPlayer = localPlayer()
     if not pPlayer then return end
 
     local tCamPos = pPlayer:GetCameraLocation()
 
-    for _, oWebUI in ipairs(WebUI3d2d.GetAll()) do
-        if not oWebUI.ready then goto continue end
+    for oWebUI in pairs(tInstances) do
+        if not oWebUI.__ready then goto continue end
         -- In use, or finishing an animation in sight (SetKeepAwake)
         if oWebUI:IsKeptAwake() then goto continue end
 
@@ -304,11 +359,11 @@ local function calcFreezeStates()
         local iBoundsSize = oWebUI:GetBounds().BoxExtent:Size()
 
         if oWebUI:IsFrozen() then
-            if (iDist < (iBoundsSize * fFreezeFromDist) ^ 2) then
+            if (iDist < (iBoundsSize * FREEZE_FROM_DIST) ^ 2) then
                 oWebUI:SetFreeze(false)
             end
         else
-            if (iDist > (iBoundsSize * fFreezeFromDist) ^ 2) then
+            if (iDist > (iBoundsSize * FREEZE_FROM_DIST) ^ 2) then
                 oWebUI:SetFreeze(true)
             end
         end
@@ -342,76 +397,94 @@ end
 -- 3D cursor
 ----------------------------------------------------------------------
 
----Get the 3d space location and rotation of the cursor decal
+---A rotation tilted by the smallest turn that brings its up axis (+Z) onto a direction
+---@param tRot Rotator
+---@param tDir Vector @Unit direction
+---@return Rotator
+local function tiltUpOnto(tRot, tDir)
+    local tUp = tRot:GetUpVector()
+    local fDot = mathMax(-1, mathMin(tUp:Dot(tDir), 1))
+    if (fDot > 0.9999) then return tRot end
+
+    -- Facing the other way (the mesh seen from behind): half a turn around its forward axis
+    local tAxis = (fDot < -0.9999) and tRot:GetForwardVector() or tUp:Cross(tDir):GetSafeNormal()
+    local fHalfAngle = (math.acos(fDot) / 2)
+    local fSin = math.sin(fHalfAngle)
+
+    return (Quat(tAxis.X * fSin, tAxis.Y * fSin, tAxis.Z * fSin, math.cos(fHalfAngle)) * tRot:Quaternion()):Rotator()
+end
+
+---Get the 3d space location and rotation of the cursor plane: laid on the mesh, its texture's top-left
+---corner (the arrow's tip) on the hit point
 ---@param tTrace table @The trace result of the target lookup
----@return Vector @The location of the cursor decal
----@return Rotator @The rotation of the cursor decal
+---@return Vector @The location of the cursor plane
+---@return Rotator @The rotation of the cursor plane
 local function findCursorDecalPos(tTrace)
     if not oTargetUI or not oTargetUI:IsValid() then
         return Vector(), Rotator()
     end
 
-    local tRot = (tTrace.Normal:ToOrientationRotator():Quaternion() * Quat(1, 0, 0, 0)):Rotator()
-    local tUp = tRot:GetUpVector()
-    local tRight = tRot:GetRightVector()
-    local fCursorSize = oTargetUI:GetCursorSize()
+    -- The mesh's rotation, so the cursor's texture runs like the page's (U along X, V along Y), tilted onto
+    -- the surface where it's hit: a bent mesh's curve, the mesh facing its local +Z like SM_Plane
+    local tRot = tiltUpOnto(oTargetUI:GetRotation(), tTrace.Normal)
+    local fHalfSize = oTargetUI:GetCursorDecalSize()
 
-    return tTrace.Location + (tRight * fCursorSize) + (tUp * fCursorSize), tRot
+    return tTrace.Location + (tTrace.Normal * CURSOR_OFFSET) + (tRot:GetForwardVector() * fHalfSize) + (tRot:GetRightVector() * fHalfSize), tRot
 end
 
----Internal function to update the cursor decal location
-local function cursorDecalTick(fDelta)
+---Internal function to hide the cursor decal after a delay without activity, and show it again on activity
+---@param iNow integer @Current time in milliseconds
+local function updateCursorDecalVisibility(iNow)
     if not oTargetUI or not oTargetUI:IsValid() then return end
-    if not oTargetUI.cursor_decal or not oTargetUI.cursor_decal:IsValid() then return end
+    if not oTargetUI.__cursor_decal or not oTargetUI.__cursor_decal:IsValid() then return end
+    if (CURSOR_HIDE_DELAY <= 0) or not oTargetUI.__last_activity then return end
 
-    -- Hide/show cursor decal after a delay/activity
-    if (iCursorHideDelay > 0) and oTargetUI.last_activity then
-        local iTime = Client.GetTime()
-        local iElaspedSinceLastActivity = (iTime - oTargetUI.last_activity)
-
-        if oTargetUI.cursor_decal:IsVisible() then
-            if (iElaspedSinceLastActivity > iCursorHideDelay) then
-                oTargetUI.cursor_decal:SetVisibility(false)
-            end
-        else
-            if (iElaspedSinceLastActivity < iCursorHideDelay) then
-                oTargetUI.cursor_decal:SetVisibility(true)
-            end
-        end
+    -- Its visibility is kept in Lua rather than asked of the engine on every lookup
+    local bActive = ((iNow - oTargetUI.__last_activity) < CURSOR_HIDE_DELAY)
+    if (bActive ~= oTargetUI.__cursor_decal_visible) then
+        oTargetUI.__cursor_decal_visible = bActive
+        oTargetUI.__cursor_decal:SetVisibility(bActive)
     end
-
-    -- Lerp to targetted cursor location if visible
-    if not oTargetUI.cursor_decal:IsVisible() then return end
-
-    local tTargetLoc = oTargetUI.cursor_decal:GetValue("target_location")
-    if not tTargetLoc then return end
-
-    oTargetUI.cursor_decal:SetLocation(lerpVector(
-        oTargetUI.cursor_decal:GetLocation(),
-        tTargetLoc,
-        fDelta,
-        iTargetTickRate
-    ))
 end
 
+---Scale of the cursor plane for a cursor size
+---@param fHalfSize number @Half the cursor's width, in cm
+---@return Vector
+local function getCursorScale(fHalfSize)
+    local fScale = (fHalfSize * 2 / PLANE_SIZE)
+    return Vector(fScale, fScale, 1)
+end
+
+---`🔸 Client`<br>
 ---Handles the WebUI3d2d cursor movement
 ---@param oWebUI WebUI3d2d @The WebUI3d2d instance to handle the cursor movement for
 ---@param tTrace table @The trace result of the target lookup
-local function handleCursorMouseMove(oWebUI, tTrace)
+---@param fGlideTime number @Seconds the cursor takes to reach its new location
+local function handleCursorMouseMove(oWebUI, tTrace, fGlideTime)
     if not oWebUI:IsCursorDecalEnabled() then return end
-    if not oWebUI.cursor_decal or not oWebUI.cursor_decal:IsValid() then return end
 
-    -- Destroy cursor decal if mouse is enabled
-    if Input.IsMouseEnabled() then
-        oWebUI.cursor_decal:Destroy()
-        oWebUI.cursor_decal = nil
+    local tLoc, tRot = findCursorDecalPos(tTrace)
+
+    -- Created on a cursor move rather than on targeting, so a cursor turned on mid-target shows up too
+    if not oWebUI.__cursor_decal or not oWebUI.__cursor_decal:IsValid() then
+        oWebUI.__cursor_decal = StaticMesh(tLoc, tRot, "nanos-world::SM_Plane", CollisionType.NoCollision)
+        oWebUI.__cursor_decal:SetScale(getCursorScale(oWebUI:GetCursorDecalSize()))
+        oWebUI.__cursor_decal:SetCastShadow(false)
+        oWebUI.__cursor_decal:SetMaterial(CURSOR_MATERIAL)
+        oWebUI.__cursor_decal:SetMaterialTextureParameter("Texture", CURSOR_TEXTURE)
+        oWebUI.__cursor_decal_visible = true
+        oWebUI.__cursor_decal_rot = tRot
         return
     end
 
-    -- Update cursor target location, and rotation
-    local tLoc, tRot = findCursorDecalPos(tTrace)
-    oWebUI.cursor_decal:SetValue("target_location", tLoc, false)
-    oWebUI.cursor_decal:SetRotation(tRot)
+    -- Glide to the new cursor location until the next lookup (engine-side interpolation)
+    oWebUI.__cursor_decal:TranslateTo(tLoc, fGlideTime, 0)
+
+    -- Turned only when the surface under it does, which a flat mesh never does
+    if not tRot:Equals(oWebUI.__cursor_decal_rot, 0.01) then
+        oWebUI.__cursor_decal_rot = tRot
+        oWebUI.__cursor_decal:SetRotation(tRot)
+    end
 end
 
 -- WebUI3d2d targeting
@@ -439,36 +512,39 @@ local function getHitUV(oWebUI, tTrace)
         return tUV.X, tUV.Y
     end
 
-    if not oWebUI.default_mesh then
+    if not oWebUI.__default_mesh then
         return 0, 0
     end
 
-    local eMesh = oWebUI.mesh
+    local eMesh = oWebUI.__mesh
     local tLocal = eMesh:GetRotation():UnrotateVector(tTrace.Location - eMesh:GetLocation())
     local tScale = eMesh:GetScale()
-
-    local fU = (tLocal.X / (fPlaneSize * tScale.X)) + 0.5
-    local fV = (tLocal.Y / (fPlaneSize * tScale.Y)) + 0.5
+    local fU = (tLocal.X / (PLANE_SIZE * tScale.X)) + 0.5
+    local fV = (tLocal.Y / (PLANE_SIZE * tScale.Y)) + 0.5
 
     return mathMax(0, mathMin(fU, 1)), mathMax(0, mathMin(fV, 1))
 end
 
----Share of the view's width a WebUI3d2d's bounds diagonal spans, laid across the view where the trace hit
----it: its world size, its distance and the lens all count, its page resolution doesn't. The hit point is
----always in front of the camera, so both ends project
----@param tAt Vector @Where the trace hit the WebUI3d2d
----@param oWebUI WebUI3d2d
----@param pPlayer Player
----@return number
-local function getScreenShare(tAt, oWebUI, pPlayer)
-    local tViewport = getViewportSize()
-    if (tViewport.X <= 0) then return 0 end
+---The targeting control in use: the cursor while the mouse is enabled, the camera otherwise
+---@param bMouseEnabled boolean
+---@return WebUI3d2dTargeting
+local function getTargetingControl(bMouseEnabled)
+    return bMouseEnabled and WebUI3d2dTargeting.Cursor or WebUI3d2dTargeting.Camera
+end
 
-    local tSpan = pPlayer:GetCameraRotation():GetRightVector() * oWebUI:GetBounds().BoxExtent:Size()
-    local tLeft = projectWorldToScreen(tAt - tSpan)
-    local tRight = projectWorldToScreen(tAt + tSpan)
+---Whether a ready WebUI3d2d can be targeted with the current control
+---@param bMouseEnabled boolean @Is the cursor the control
+---@return boolean
+local function hasTargetable(bMouseEnabled)
+    local iControl = getTargetingControl(bMouseEnabled)
 
-    return mathAbs(tRight.X - tLeft.X) / tViewport.X
+    for oWebUI in pairs(tInstances) do
+        if oWebUI.__ready and ((oWebUI:GetTargeting() & iControl) ~= 0) then
+            return true
+        end
+    end
+
+    return false
 end
 
 ---Lookup for a targetted WebUI3d2d object and find the mouse position (in pixels) on this WebUI3d2d
@@ -477,12 +553,22 @@ end
 ---@return number? @Cursor Y on the page, in pixels
 ---@return table? @The trace that hit it
 local function targetLookup()
+    -- The trace is the lookup's cost, skipped while no WebUI3d2d could take the hit
+    local bMouseEnabled = Input.IsMouseEnabled()
+    if not hasTargetable(bMouseEnabled) then return end
+
     local pPlayer = localPlayer()
     if not pPlayer then return end
 
     local tTrace
-    local tCamPos = pPlayer:GetCameraLocation()
-    local bMouseEnabled = Input.IsMouseEnabled()
+
+    -- The cursor plane floats in front of the mesh, the trace goes through it
+    local eCursor = oTargetUI and oTargetUI.__cursor_decal
+    local tIgnored = tNoActors
+    if eCursor and eCursor:IsValid() then
+        tCursorIgnored[1] = eCursor
+        tIgnored = tCursorIgnored
+    end
 
     -- Perform a trace line to find a potential target
     if bMouseEnabled then
@@ -490,26 +576,30 @@ local function targetLookup()
 
         tTrace = traceLineSingle(
             tCursorToWorld.Position,
-            tCursorToWorld.Position + (tCursorToWorld.Direction * (iMaxUISize * 2)),
+            tCursorToWorld.Position + (tCursorToWorld.Direction * (MAX_UI_SIZE * 2)),
             iCollisionChannel,
-            iTraceMode
+            iTraceMode,
+            tIgnored
         )
     else
+        local tCamPos = pPlayer:GetCameraLocation()
+
         tTrace = traceLineSingle(
             tCamPos,
-            tCamPos + (pPlayer:GetCameraRotation():GetForwardVector() * (iMaxUISize * 2)),
+            tCamPos + (pPlayer:GetCameraRotation():GetForwardVector() * (MAX_UI_SIZE * 2)),
             iCollisionChannel,
-            iTraceMode
+            iTraceMode,
+            tIgnored
         )
     end
 
     -- Check if the trace hit a WebUI3d2d, and if it's interactable
     if not tTrace.Entity then return end
     local oWebUI = tTrace.Entity:GetValue("webui3d2d_page")
-    if not oWebUI or not oWebUI.ready or not oWebUI:IsInteractable() then return end
+    if not oWebUI or not oWebUI.__ready or not oWebUI:IsInteractable() then return end
 
-    -- Check if the WebUI3d2d is big enough on screen to use (fMinScreenShare)
-    if (getScreenShare(tTrace.Location, oWebUI, pPlayer) < fMinScreenShare) then return end
+    -- Check if the WebUI3d2d is big enough on screen to use (MIN_SCREEN_PERCENTAGE)
+    if (oWebUI:GetScreenPercentage() < MIN_SCREEN_PERCENTAGE) then return end
 
     -- Translate the UV coordinates to pixels
     local tSize = oWebUI:GetSize()
@@ -520,38 +610,51 @@ local function targetLookup()
     return oWebUI, iX, iY, tTrace
 end
 
+---Releases the keys still held down on a WebUI3d2d
+---@param oWebUI WebUI3d2d
+local function releaseHeldKeys(oWebUI)
+    local iWebUIModifiers = getWebUIModifiers(oWebUI)
+
+    for iKeyCode, _ in pairs(oWebUI.__down_keys) do
+        oWebUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, iWebUIModifiers)
+    end
+
+    oWebUI.__down_keys = {}
+end
+
 ---Untargets the current targeted WebUI3d2d
 local function untargetWebUI3d2d()
-    if not oTargetUI or not oTargetUI:IsValid() then return end
+    if not oTargetUI then return end
 
     local xOldTarget = oTargetUI
 
     -- Remove cursor decal
-    if oTargetUI.cursor_decal and oTargetUI.cursor_decal:IsValid() then
-        oTargetUI.cursor_decal:Destroy()
-        oTargetUI.cursor_decal = nil
+    if oTargetUI.__cursor_decal and oTargetUI.__cursor_decal:IsValid() then
+        oTargetUI.__cursor_decal:Destroy()
+        oTargetUI.__cursor_decal = nil
     end
 
-    -- Reset down keys/mouse buttons/mouse movement
-    local iWebUIModifiers = getWebUIModifiers()
+    -- A target destroyed before this gets no events, but the shared state below still resets, or every
+    -- other WebUI would stay click-through
+    if oTargetUI:IsValid() then
+        -- Reset down keys/mouse buttons/mouse movement
+        releaseHeldKeys(oTargetUI)
 
-    for iKeyCode, _ in pairs(oTargetUI.down_keys) do
-        oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, iWebUIModifiers)
-    end
-
-    for sKey, _ in pairs(oTargetUI.down_mouse_buttons) do
-        if tMouseTypes[sKey] then
-            oTargetUI:SendMouseClickEvent(0, 0, tMouseTypes[sKey], true, iWebUIModifiers, 1)
+        -- Each button is released with the modifiers it leaves held, like doMouseUp
+        local tDownButtons = oTargetUI.__down_mouse_buttons
+        for sKey, _ in pairs(tDownButtons) do
+            tDownButtons[sKey] = nil
+            if tMouseTypes[sKey] then
+                oTargetUI:SendMouseClickEvent(0, 0, tMouseTypes[sKey], true, getWebUIModifiers(oTargetUI), 1)
+            end
         end
+
+        oTargetUI:SendMouseMoveEvent(0, 0, getWebUIModifiers(oTargetUI), true)
+        oTargetUI.__cursor_x, oTargetUI.__cursor_y = 0, 0
     end
 
-    oTargetUI:SendMouseMoveEvent(0, 0, iWebUIModifiers, true)
-
-    -- Reset properties
-    oTargetUI.down_keys = {}
-    oTargetUI.down_mouse_buttons = {}
-    oTargetUI.cursor_x, oTargetUI.cursor_y = 0, 0
     oTargetUI = false
+    bKeyboardEngaged = false
 
     updateWebUIsVisibility()
 
@@ -560,61 +663,30 @@ end
 
 ---Targets a WebUI3d2d
 ---@param oWebUI WebUI3d2d instance
----@param tTrace table
-local function targetWebUI3d2d(oWebUI, tTrace)
+local function targetWebUI3d2d(oWebUI)
     local xOldTarget = oTargetUI
 
     untargetWebUI3d2d()
     oTargetUI = oWebUI
-
-    -- Check if cursor decal is valid, if not create it
-    if not oTargetUI.cursor_decal or not oTargetUI.cursor_decal:IsValid() then
-        local tLoc, tRot = findCursorDecalPos(tTrace)
-        local fCursorSize = oTargetUI:GetCursorSize()
-
-        oTargetUI.cursor_decal = Decal(
-            tLoc,
-            tRot,
-            "nanos-world::M_Default_Translucent_Lit_Decal",
-            Vector(0.01, fCursorSize, fCursorSize),
-            -1,
-            0.0001
-        )
-
-        oTargetUI.cursor_decal:SetVisibility(false)
-        oTargetUI.cursor_decal:SetMaterialTextureParameter("Texture", sCursorTexture)
-        setupMaterialParams(oTargetUI.cursor_decal)
-        oTargetUI.cursor_decal:SetVisibility(true)
-    end
 
     updateWebUIsVisibility()
 
     Events.Call("OnWebUI3d2dTargetChange", xOldTarget, oTargetUI)
 end
 
--- Events
+-- Target lookup and freeze check
 ----------------------------------------------------------------------
 
-Client.Subscribe("Tick", function(fDelta)
-    local iTime = Client.GetTime()
+local function lookupTick()
+    -- Next target lookup, sooner while a WebUI3d2d is targeted. Scheduled first so an error below can't end the loop
+    Timer.SetTimeout(lookupTick, mathFloor(1000 / (oTargetUI and TARGET_TICK_RATE or TARGET_IDLE_TICK_RATE)))
 
-    -- Freeze check (CPU saver)
-    if (iTime >= iNextFreezeHandle) then
-        iNextFreezeHandle = (iTime + iFreezeCheckDelay)
-        calcFreezeStates()
-    end
-
-    -- Update cursor decal location and visibility
-    cursorDecalTick(fDelta)
-
-    -- Next target lookup; Change refresh rate depending on a WebUI3d2d being targeted or not
-    if (iTime < iNextTargetLookup) then return end
-
-    if oTargetUI then
-        iNextTargetLookup = iTime + (1000 / iTargetTickRate)
-    else
-        iNextTargetLookup = iTime + (1000 / iTargetIdleTickRate)
-    end
+    -- Timers fire on frames, so a lookup lands up to a frame after its interval. The cursor glides for the gap
+    -- since the last lookup, the best guess of the next one, so it keeps moving until then; capped at two
+    -- intervals so the first move after a pause doesn't crawl
+    local iNow = Client.GetTime()
+    local fGlideTime = (mathMin(iNow - iLastLookupTime, 2000 / TARGET_TICK_RATE) / 1000)
+    iLastLookupTime = iNow
 
     -- Find a targeted WebUI3d2d
     local oWebUI, iX, iY, tTrace = targetLookup()
@@ -626,23 +698,37 @@ Client.Subscribe("Tick", function(fDelta)
     -- WebUI3d2d targeted
     if oTargetUI then
         if (oTargetUI ~= oWebUI) then
-            targetWebUI3d2d(oWebUI, tTrace)
+            targetWebUI3d2d(oWebUI)
         end
     else
-        targetWebUI3d2d(oWebUI, tTrace)
+        targetWebUI3d2d(oWebUI)
     end
 
-    if (iX ~= oWebUI.cursor_x) or (iY ~= oWebUI.cursor_y) then
-        oWebUI.last_activity = Client.GetTime()
-        oWebUI.cursor_x, oWebUI.cursor_y = iX, iY
-        oWebUI:SendMouseMoveEvent(iX, iY, getWebUIModifiers(), false)
+    if (iX ~= oWebUI.__cursor_x) or (iY ~= oWebUI.__cursor_y) then
+        oWebUI.__last_activity = iNow
+        oWebUI.__cursor_x, oWebUI.__cursor_y = iX, iY
+        oWebUI:SendMouseMoveEvent(iX, iY, getWebUIModifiers(oWebUI), false)
 
-        handleCursorMouseMove(oWebUI, tTrace)
+        handleCursorMouseMove(oWebUI, tTrace, fGlideTime)
     end
-end)
+
+    updateCursorDecalVisibility(iNow)
+end
+
+Timer.SetTimeout(lookupTick, mathFloor(1000 / TARGET_IDLE_TICK_RATE))
+
+-- Freeze check (CPU saver)
+Timer.SetInterval(calcFreezeStates, FREEZE_CHECK_DELAY)
 
 -- Mouse Events
 ----------------------------------------------------------------------
+
+---Whether the game still gets an input while a WebUI3d2d is targeted, as the Input handlers return it
+---@param iInput WebUI3d2dInput
+---@return boolean
+local function gameGetsInput(iInput)
+    return ((oTargetUI:GetBlockedGameInput() & iInput) == 0)
+end
 
 local function doMouseDown(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
@@ -651,33 +737,37 @@ local function doMouseDown(sKey)
     -- Multiple clicks detection
     local iTime = Client.GetTime()
 
-    if oTargetUI.last_clicked_key and (oTargetUI.last_clicked_key == sKey) then
-        if ((iTime - (oTargetUI.last_click_time or 0)) < 250) then
-            oTargetUI.click_count = mathMin((oTargetUI.click_count or 0) + 1, 3)
+    if oTargetUI.__last_clicked_key and (oTargetUI.__last_clicked_key == sKey) then
+        if ((iTime - (oTargetUI.__last_click_time or 0)) < 250) then
+            oTargetUI.__click_count = mathMin((oTargetUI.__click_count or 0) + 1, 3)
         else
-            oTargetUI.click_count = 1
+            oTargetUI.__click_count = 1
         end
     else
-        oTargetUI.click_count = 1
+        oTargetUI.__click_count = 1
     end
 
     -- First click/simple click
-    oTargetUI.last_click_time = iTime
-    oTargetUI.last_clicked_key = sKey
+    oTargetUI.__last_click_time = iTime
+    oTargetUI.__last_clicked_key = sKey
+    -- Before the event, so its modifiers hold the button like the engine's state did
+    oTargetUI.__down_mouse_buttons[sKey] = true
 
     oTargetUI:SendMouseClickEvent(
-        oTargetUI.cursor_x,
-        oTargetUI.cursor_y,
+        oTargetUI.__cursor_x,
+        oTargetUI.__cursor_y,
         tMouseTypes[sKey],
         false,
-        getWebUIModifiers(),
-        oTargetUI.click_count
+        getWebUIModifiers(oTargetUI),
+        oTargetUI.__click_count
     )
 
-    oTargetUI.down_mouse_buttons[sKey] = true
-    oTargetUI.last_activity = iTime
+    oTargetUI.__last_activity = iTime
 
-    return oTargetUI:IsMouseEventsEnabled()
+    -- Captures the keyboard (WebUI3d2dKeyboardCapture.OnClick) until it's untargeted or Escape is pressed
+    bKeyboardEngaged = true
+
+    return gameGetsInput(WebUI3d2dInput.Mouse)
 end
 
 Input.Subscribe("MouseDown", doMouseDown)
@@ -686,19 +776,20 @@ local function doMouseUp(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
     if not tMouseTypes[sKey] then return end
 
+    -- Before the event, so its modifiers no longer hold the button, like the engine's state did
+    oTargetUI.__down_mouse_buttons[sKey] = nil
+
     oTargetUI:SendMouseClickEvent(
-        oTargetUI.cursor_x,
-        oTargetUI.cursor_y,
+        oTargetUI.__cursor_x,
+        oTargetUI.__cursor_y,
         tMouseTypes[sKey],
         true,
-        getWebUIModifiers(),
+        getWebUIModifiers(oTargetUI),
         1
     )
+    oTargetUI.__last_activity = Client.GetTime()
 
-    oTargetUI.down_mouse_buttons[sKey] = nil
-    oTargetUI.last_activity = Client.GetTime()
-
-    return oTargetUI:IsMouseEventsEnabled()
+    return gameGetsInput(WebUI3d2dInput.Mouse)
 end
 
 --[[ Input MouseUp ]]--
@@ -707,34 +798,52 @@ Input.Subscribe("MouseUp", doMouseUp)
 -- Keyboard Events
 ----------------------------------------------------------------------
 
+---Whether the targeted WebUI3d2d captures the keyboard: always, or since a click on it
+---@return boolean
+local function capturesKeyboard()
+    local iMode = oTargetUI:GetKeyboardCapture()
+    if (iMode == WebUI3d2dKeyboardCapture.Always) then return true end
+
+    return (iMode == WebUI3d2dKeyboardCapture.OnClick) and bKeyboardEngaged
+end
+
 Input.Subscribe("KeyDown", function(_)
-    if oTargetUI and oTargetUI:IsValid() then
-        return oTargetUI:IsKeyboardEventsEnabled()
-    end
+    if not oTargetUI or not oTargetUI:IsValid() then return end
+    -- Keys stay with the game until the WebUI3d2d captures the keyboard
+    if not capturesKeyboard() then return end
+
+    return gameGetsInput(WebUI3d2dInput.Keyboard)
 end)
 
 local function doKeyPress(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
-    -- Mouse button alias check
+    -- A mouse alias key acts as its mouse button only, it isn't typed into the page
     local sMBAlias = oTargetUI:GetMouseAliasKey(sKey)
     if sMBAlias then
-        doMouseDown(sMBAlias)
+        return doMouseDown(sMBAlias)
     end
 
-    -- Check if the WebUI3d2d can receive keyboard input, if a valid key is found, etc..
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
+    -- Check if the WebUI3d2d captures the keyboard, if a valid key is found, etc..
+    if not capturesKeyboard() then return end
+
+    -- Escape hands the keyboard back to the game
+    if (sKey == "Escape") and (oTargetUI:GetKeyboardCapture() == WebUI3d2dKeyboardCapture.OnClick) then
+        bKeyboardEngaged = false
+        releaseHeldKeys(oTargetUI)
+        return gameGetsInput(WebUI3d2dInput.Keyboard)
+    end
 
     local iKeyCode, iASCIICode, bASCIICharOnly = getKeyInfo(sKey)
     if not iKeyCode then
-        return oTargetUI:IsKeyboardEventsEnabled()
+        return gameGetsInput(WebUI3d2dInput.Keyboard)
     end
 
-    local iWebUIModifiers = getWebUIModifiers()
+    local iWebUIModifiers = getWebUIModifiers(oTargetUI)
 
     if not bASCIICharOnly then
         oTargetUI:SendKeyEvent(WebUIKeyType.Down, iKeyCode, iWebUIModifiers)
-        oTargetUI.down_keys[iKeyCode] = true
+        oTargetUI.__down_keys[iKeyCode] = true
     end
 
     if iASCIICode then
@@ -742,9 +851,9 @@ local function doKeyPress(sKey)
     end
 
     -- Update last activity
-    oTargetUI.last_activity = Client.GetTime()
+    oTargetUI.__last_activity = Client.GetTime()
 
-    return oTargetUI:IsKeyboardEventsEnabled()
+    return gameGetsInput(WebUI3d2dInput.Keyboard)
 end
 
 Input.Subscribe("KeyPress", doKeyPress)
@@ -752,22 +861,23 @@ Input.Subscribe("KeyPress", doKeyPress)
 local function doKeyRelease(sKey)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
-    -- Mouse button alias check
+    -- A mouse alias key acts as its mouse button only
     local sMBAlias = oTargetUI:GetMouseAliasKey(sKey)
     if sMBAlias then
-        doMouseUp(sMBAlias)
+        return doMouseUp(sMBAlias)
     end
 
-    -- Check if the WebUI3d2d can receive keyboard input, if a valid key is found, etc..
-    if not oTargetUI:IsKeyboardInputEnabled() then return end
+    -- Check if the WebUI3d2d captures the keyboard, if a valid key is found, etc..
+    if not capturesKeyboard() then return end
 
-    local iKeyCode, _, bASCIICharOnly = getKeyInfo(sKey)
-    if not iKeyCode or not bASCIICharOnly then return end
+    -- Only a key the page got a Down for (char-only keys get a Char alone)
+    local iKeyCode = getKeyInfo(sKey)
+    if not iKeyCode or not oTargetUI.__down_keys[iKeyCode] then return end
 
-    oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, getWebUIModifiers())
+    oTargetUI:SendKeyEvent(WebUIKeyType.Up, iKeyCode, getWebUIModifiers(oTargetUI))
 
-    oTargetUI.down_keys[iKeyCode] = nil
-    oTargetUI.last_activity = Client.GetTime()
+    oTargetUI.__down_keys[iKeyCode] = nil
+    oTargetUI.__last_activity = Client.GetTime()
 end
 
 Input.Subscribe("KeyUp", doKeyRelease)
@@ -775,159 +885,167 @@ Input.Subscribe("KeyUp", doKeyRelease)
 local function doMouseScroll(_, _, iDelta)
     if not oTargetUI or not oTargetUI:IsValid() then return end
 
-    local iWHMax = mathMax(oTargetUI.width, oTargetUI.height)
+    local iWHMax = mathMax(oTargetUI.__width, oTargetUI.__height)
 
     oTargetUI:SendMouseWheelEvent(
-        oTargetUI.cursor_x,
-        oTargetUI.cursor_y,0,
+        oTargetUI.__cursor_x,
+        oTargetUI.__cursor_y,0,
         (iDelta * mathFloor(iWHMax * 0.1))
     )
 
-    oTargetUI.last_activity = Client.GetTime()
+    oTargetUI.__last_activity = Client.GetTime()
 
-    return oTargetUI:IsMouseEventsEnabled()
+    return gameGetsInput(WebUI3d2dInput.Mouse)
 end
 
 Input.Subscribe("MouseScroll", doMouseScroll)
+
+-- WebUI3d2d lifecycle
+----------------------------------------------------------------------
+
+local function onFail(oWebUI)
+    oWebUI:MakeNoSignal()
+
+    if oWebUI:IsReloadOnFailEnabled() then
+        Timer.SetTimeout(function()
+            if not oWebUI:IsValid() then return end
+            oWebUI:LoadURL(oWebUI.__path)
+        end, 2000)
+    end
+end
+
+local function onReady(oWebUI)
+    oWebUI:SetFreeze(false)
+    oWebUI.__mesh:SetMaterialFromWebUI(oWebUI, oWebUI.__material_index)
+
+    oWebUI.__ready = true
+end
+
+local function onDestroy(oWebUI)
+    tInstances[oWebUI] = nil
+
+    if oTargetUI and (oTargetUI == oWebUI) then
+        untargetWebUI3d2d()
+    end
+
+    if oWebUI.__mesh and oWebUI.__mesh:IsValid() then oWebUI.__mesh:Destroy() end
+    if oWebUI.__cursor_decal and oWebUI.__cursor_decal:IsValid() then oWebUI.__cursor_decal:Destroy() end
+end
+
+-- WebUI3d2d mesh
+----------------------------------------------------------------------
+
+---Whether a value is a Vector2D, or anything with numbers as X and Y
+---@param xValue any
+---@return boolean
+local function isVector2D(xValue)
+    local sType = type(xValue)
+    return ((sType == "table") or (sType == "userdata")) and (type(xValue.X) == "number") and (type(xValue.Y) == "number")
+end
+
+---A page resolution brought within MIN_UI_SIZE and MAX_UI_SIZE, keeping its ratio: the long side down to
+---MAX_UI_SIZE first, then the short side up to MIN_UI_SIZE
+---@param tResolution Vector2D @Resolution in pixels
+---@return integer @Width in pixels
+---@return integer @Height in pixels
+local function clampResolution(tResolution)
+    local fW = mathMax(1, mathAbs(tResolution.X))
+    local fH = mathMax(1, mathAbs(tResolution.Y))
+    local fScale = mathMin(1, (MAX_UI_SIZE / mathMax(fW, fH)))
+    fScale = mathMax(fScale, (MIN_UI_SIZE / mathMin(fW, fH)))
+
+    return mathFloor((fW * fScale) + 0.5), mathFloor((fH * fScale) + 0.5)
+end
+
+---Sets the WebUI3d2d's mesh up for the page: its scale (the default plane sized from the page resolution,
+---another mesh at 1), its material parameters, and the page on its material slot, or noise until it's ready
+---@param oWebUI WebUI3d2d
+---@param sMesh? string @Mesh asset, nil for the default plane
+---@param iMaterialIndex? integer @Material slot the page is painted on, -1 for every slot
+local function applyMesh(oWebUI, sMesh, iMaterialIndex)
+    local eMesh = oWebUI.__mesh
+
+    oWebUI.__default_mesh = ((sMesh or DEFAULT_MESH) == DEFAULT_MESH)
+    oWebUI.__material_index = (iMaterialIndex or -1)
+
+    if oWebUI.__default_mesh then
+        local fCmPerScale = (PLANE_PIXELS_PER_CM * PLANE_SIZE)
+        eMesh:SetScale(Vector((oWebUI.__width / fCmPerScale), (oWebUI.__height / fCmPerScale), 1))
+    else
+        eMesh:SetScale(Vector(1))
+    end
+
+    setupMaterialParams(eMesh)
+
+    if oWebUI.__ready then
+        eMesh:SetMaterialFromWebUI(oWebUI, oWebUI.__material_index)
+    else
+        -- Noise until `onReady` paints the page, or for good if the URL is not valid
+        oWebUI:MakeNoSignal()
+    end
+end
 
 -- WebUI3d2d class and methods
 ----------------------------------------------------------------------
 
 ---`🔸 Client`<br>
----`WebUI3d2d` is a class that represents a WebUI3d2d instance
+---`WebUI3d2d` is a class that represents a WebUI3d2d instance: a page painted on a mesh in the world
 ---@class WebUI3d2d : WebUI
----@overload fun(sPath: string, bTransparent: boolean, iW: integer, iH: integer, tScale: Vector, bAttach3DSound: boolean, sMesh: string, iMatIndex: integer): WebUI3d2d
+---@overload fun(sURL: string, tResolution?: Vector2D, bTransparent?: boolean, sMesh?: string, iMaterialIndex?: integer): WebUI3d2d
 WebUI3d2d = WebUI.Inherit("WebUI3d2d")
 
-function WebUI3d2d:Constructor(sPath, bTransparent, iW, iH, tScale, bAttach3DSound, sMesh, iMatIndex)
-    sPath = (type(sPath) == "string") and sPath or ""
+---`🔸 Client`<br>
+---Spawns a WebUI3d2d. The default mesh, nanos-world::SM_Plane, is sized from the page resolution
+---(PLANE_PIXELS_PER_CM pixels per centimetre) so the page isn't stretched; SetPlaneSize changes it
+---@param sURL string @Page to load: a web URL, or a local page as `file://my_page.html`
+---@param tResolution? Vector2D @Page resolution in pixels, brought within MIN_UI_SIZE and MAX_UI_SIZE keeping its ratio; past a 34:1 ratio both can't hold and the short side's MIN_UI_SIZE wins (default 1920 x 1080)
+---@param bTransparent? boolean @Should the page's transparent parts show through (default false)
+---@param sMesh? string @Mesh the page is painted on (default nanos-world::SM_Plane)
+---@param iMaterialIndex? integer @Material slot of the mesh the page is painted on, -1 for every slot (default -1)
+function WebUI3d2d:Constructor(sURL, tResolution, bTransparent, sMesh, iMaterialIndex)
+    sURL = (type(sURL) == "string") and sURL or ""
     bTransparent = (bTransparent and true or false)
 
-    tScale = (getmetatable(tScale) == Vector) and tScale or Vector(1)
-    tScale.X = mathAbs(tScale.X)
-    tScale.Y = mathAbs(tScale.Y)
-
-    -- Format w/h, and clamp the resolution between the min/max UI size + keep the aspect ratio
-    iW = mathFloor(mathAbs(iW or tScale.X))
-    iH = mathFloor(mathAbs(iH or tScale.Y))
-
-    local iMaxVW, iMinVW = mathMax(iW, iH), mathMin(iW, iH)
-
-    if (iMaxVW > iMaxUISize) then
-        local fAspectRatio = mathFloor(iMaxUISize / iMaxVW)
-        iW, iH = (iW * fAspectRatio), (iH * fAspectRatio)
-    end
-    if (iMinVW < iMinUISize) then
-        local fAspectRatio = mathFloor(iMinUISize / iMinVW)
-        iW, iH = (iW * fAspectRatio), (iH * fAspectRatio)
-    end
+    local iW, iH = clampResolution(isVector2D(tResolution) and tResolution or DEFAULT_RESOLUTION)
 
     -- WebUI3d2d instance and listeners
-    self.Super:Constructor("", sPath, WidgetVisibility.Hidden, bTransparent, false, iW, iH)
-    self:Subscribe("Fail", self.OnFail)
-    self:Subscribe("Ready", self.OnReady)
-    self:Subscribe("Destroy", self.OnDestroy)
+    self.Super:Constructor("", sURL, WidgetVisibility.Hidden, bTransparent, false, iW, iH)
+    self:Subscribe("Fail", onFail)
+    self:Subscribe("Ready", onReady)
+    self:Subscribe("Destroy", onDestroy)
 
     -- WebUI3d2d properties
-    self.width = iW
-    self.height = iH
-    self.cursor_decal_enabled = true
-    self.cursor_trace_control = true
-    self.camera_trace_control = true
-    self.keyboard_input_enabled = true
+    self.__width = iW
+    self.__height = iH
+    self.__cursor_decal_enabled = true
+    self.__targeting = WebUI3d2dTargeting.All
+    self.__keyboard_capture = WebUI3d2dKeyboardCapture.OnClick
+    self.__blocked_game_input = WebUI3d2dInput.All
 
-    self.mouse_events_enabled = false
-    self.keyboard_events_enabled = false
+    self.__reload_on_fail = true
+    self.__keep_awake = false
+    self.__path = sURL -- WebUI has no GetPath, the reload on fail reads this
+    self.__mouse_aliases = {}
 
-    self.material_index = (iMatIndex or -1)
-    self.default_mesh = ((sMesh or sDefaultMesh) == sDefaultMesh)
-    self.reload_on_fail = true
-    self.keep_awake = false
-    self.path = sPath -- WebUI has no GetPath, ReloadPage reads this
-    self.mouse_aliases = {}
-
-    self.cursor_x = 0
-    self.cursor_y = 0
-    self.down_keys = {}
-    self.down_mouse_buttons = {}
+    self.__cursor_x = 0
+    self.__cursor_y = 0
+    self.__down_keys = {}
+    self.__down_mouse_buttons = {}
 
     -- Parent mesh
-    self.mesh = StaticMesh(Vector(), Rotator(), sMesh or sDefaultMesh)
-    self.mesh:SetValue("webui3d2d_page", self, false)
-    self.mesh:SetScale(tScale)
-    self.mesh:SetCollision(CollisionType.NoCollision)
-    self.mesh:Subscribe("Destroy", function()
+    self.__mesh = StaticMesh(Vector(), Rotator(), sMesh or DEFAULT_MESH)
+    self.__mesh:SetValue("webui3d2d_page", self, false)
+    self.__mesh:SetCollision(CollisionType.NoCollision)
+    self.__mesh:SetCastShadow(false)
+    self.__mesh:Subscribe("Destroy", function()
         if self:IsValid() then
             self:Destroy()
         end
     end)
 
-    setupMaterialParams(self.mesh)
+    applyMesh(self, sMesh, iMaterialIndex)
 
-    -- Attached sound
-    if bAttach3DSound then
-        local iRadius = self:GetBounds().BoxExtent:Size()
-
-        self.sound = self:SpawnSound(
-            Vector(),
-            false,
-            1,
-            iRadius,
-            (iRadius * 8),
-            AttenuationFunction.Linear
-        )
-
-        self.sound:AttachTo(self.mesh, AttachmentRule.SnapToTarget, "", -1, false)
-    end
-
-    -- Noise until `OnReady` paints the page on the mesh, or for good if the URL is not valid
-    self:MakeNoSignal()
-end
-
----`🔸 Client`<br>
----<h2>Internal method, only use this if you know what you're doing.</h2>
----Reload the WebUI3d2d page
-function WebUI3d2d:ReloadPage()
-    self:LoadURL(self.path)
-end
-
----`🔸 Client`<br>
----<h2>Internal method, only use this if you know what you're doing.</h2>
----Called when the WebUI3d2d fails to load
-function WebUI3d2d:OnFail()
-    self:MakeNoSignal()
-
-    if self:ShouldReloadOnFail() then
-        Timer.SetTimeout(function()
-            if not self:IsValid() then return end
-            self:ReloadPage()
-        end, 2000)
-    end
-end
-
----`🔸 Client`<br>
----<h2>Internal method, only use this if you know what you're doing.</h2>
----Called when the WebUI3d2d is ready to be used
-function WebUI3d2d:OnReady()
-    self:SetFreeze(false)
-    self.mesh:SetMaterialFromWebUI(self, self.material_index)
-
-    self.ready = true
-end
-
----`🔸 Client`<br>
----<h2>Internal method, only use this if you know what you're doing.</h2>
----Called when the WebUI3d2d is destroyed
-function WebUI3d2d:OnDestroy()
-    -- Untarget the WebUI3d2d if it's the current target (will also remove the cursor)
-    if oTargetUI and (oTargetUI == self) then
-        untargetWebUI3d2d()
-    end
-
-    -- Destroy the mesh and sound
-    if self.mesh and self.mesh:IsValid() then self.mesh:Destroy() end
-    if self.sound and self.sound:IsValid() then self.sound:Destroy() end
-    if self.cursor_decal and self.cursor_decal:IsValid() then self.cursor_decal:Destroy() end
+    tInstances[self] = true
 end
 
 ---`🔸 Client`<br>
@@ -939,99 +1057,115 @@ function WebUI3d2d:LoadURL(sURL)
         return
     end
 
-    self.path = sURL
+    self.__path = sURL
     self.Super:LoadURL(sURL)
-    self.mesh:SetMaterialFromWebUI(self, self.material_index)
+    self.__mesh:SetMaterialFromWebUI(self, self.__material_index)
+end
+
+---`🔸 Client`<br>
+---Returns the URL the WebUI3d2d last loaded
+---@return string @The URL
+function WebUI3d2d:GetURL()
+    return self.__path
 end
 
 ---`🔸 Client`<br>
 ---Sets the WebUI3d2d to a "no signal" state
 function WebUI3d2d:MakeNoSignal()
-    self.mesh:SetMaterial("nanos-world::M_Noise", self.material_index)
+    self.__mesh:SetMaterial("nanos-world::M_Noise", self.__material_index)
 end
 
 ---`🔸 Client`<br>
 ---Returns the static mesh on which the WebUI3d2d is painted
 ---@return StaticMesh @The parent mesh
 function WebUI3d2d:GetStaticMesh()
-    return self.mesh
+    return self.__mesh
 end
 
 ---`🔸 Client`<br>
----Returns the 3D attached sound
----@return Sound|nil @The Sound instance
-function WebUI3d2d:GetAttachedSound()
-    return self.sound
+---Returns the material index of the mesh the page is painted on
+---@return integer @The material index, -1 for every slot
+function WebUI3d2d:GetMaterialIndex()
+    return self.__material_index
 end
 
 ---`🔸 Client`<br>
----Enable or disable the mouse trace control
----@param bEnabled boolean @Should the mouse trace control be enabled or not
-function WebUI3d2d:SetCursorTraceControl(bEnabled)
-    self.cursor_trace_control = (bEnabled and true or false)
+---Changes the mesh the page is painted on. The mesh changes in place, keeping its location, its attachment
+---and what's attached to it; its scale resets: the default plane to its size from the page resolution,
+---another mesh to 1
+---@param sMesh? string @Mesh asset, nil for the default plane (nanos-world::SM_Plane)
+---@param iMaterialIndex? integer @Material slot of the mesh the page is painted on, -1 for every slot (default -1)
+function WebUI3d2d:SetMesh(sMesh, iMaterialIndex)
+    -- The page and noise painted on the previous mesh's slots would stay on the new one's
+    self.__mesh:ResetMaterial(-1)
+    self.__mesh:SetMesh(sMesh or DEFAULT_MESH)
+
+    applyMesh(self, sMesh, iMaterialIndex)
 end
 
 ---`🔸 Client`<br>
----Returns wether the mouse trace control is enabled or not
----@return boolean @Is mouse trace control enabled?
-function WebUI3d2d:IsCursorTraceControlEnabled()
-    return self.cursor_trace_control
+---Sets the default plane's size in centimetres. The page keeps its resolution, so a size off its ratio
+---stretches it. Does nothing on another mesh, which SetScale sizes
+---@param tSize Vector2D @Width and height in centimetres
+function WebUI3d2d:SetPlaneSize(tSize)
+    if not self.__default_mesh or not isVector2D(tSize) then return end
+    self.__mesh:SetScale(Vector((mathAbs(tSize.X) / PLANE_SIZE), (mathAbs(tSize.Y) / PLANE_SIZE), 1))
 end
 
 ---`🔸 Client`<br>
----Enable or disable the camera trace control
----@param bEnabled boolean @Should the camera trace control be enabled or not
-function WebUI3d2d:SetCameraTraceControl(bEnabled)
-    self.camera_trace_control = (bEnabled and true or false)
+---Returns the default plane's size in centimetres, nil on another mesh
+---@return Vector2D|nil @Width and height in centimetres
+function WebUI3d2d:GetPlaneSize()
+    if not self.__default_mesh then return end
+
+    local tScale = self.__mesh:GetScale()
+    return Vector2D((tScale.X * PLANE_SIZE), (tScale.Y * PLANE_SIZE))
+end
+
+
+---`🔸 Client`<br>
+---Sets the controls the WebUI3d2d can be targeted with: the mouse cursor while the mouse is enabled, aiming the camera while it's disabled
+---@param iTargeting WebUI3d2dTargeting @Flags, e.g. `WebUI3d2dTargeting.Cursor`
+function WebUI3d2d:SetTargeting(iTargeting)
+    if (math.type(iTargeting) ~= "integer") then return end
+    self.__targeting = (iTargeting & iTargetingMask)
 end
 
 ---`🔸 Client`<br>
----Returns wether the camera trace control is enabled or not
----@return boolean @Is camera trace control enabled?
-function WebUI3d2d:IsCameraTraceControlEnabled()
-    return self.camera_trace_control
+---Returns the controls the WebUI3d2d can be targeted with
+---@return WebUI3d2dTargeting @Flags
+function WebUI3d2d:GetTargeting()
+    return self.__targeting
 end
 
 ---`🔸 Client`<br>
----Enable or disable the keyboard events
----@param bEnabled boolean @Should the WebUI3d2d allow keyboard events or not
-function WebUI3d2d:SetKeyboardEventsEnabled(bEnabled)
-    self.keyboard_events_enabled = (bEnabled and true or false)
+---Sets when the WebUI3d2d captures the keyboard while it's targeted, taking keys from the game: never, from a click on it until it's untargeted or Escape is pressed, or always
+---@param iMode WebUI3d2dKeyboardCapture
+function WebUI3d2d:SetKeyboardCapture(iMode)
+    if (math.type(iMode) ~= "integer") or (iMode < iKeyboardCaptureMin) or (iMode > iKeyboardCaptureMax) then return end
+    self.__keyboard_capture = iMode
 end
 
 ---`🔸 Client`<br>
----Returns wether the WebUI3d2d allows keyboard events or not
----@return boolean @Is keyboard events allowed?
-function WebUI3d2d:IsKeyboardEventsEnabled()
-    return self.keyboard_events_enabled
+---Returns when the WebUI3d2d captures the keyboard while it's targeted
+---@return WebUI3d2dKeyboardCapture
+function WebUI3d2d:GetKeyboardCapture()
+    return self.__keyboard_capture
 end
 
 ---`🔸 Client`<br>
----Enable or disable the mouse events
----@param bEnabled boolean @Should the WebUI3d2d allow mouse events or not
-function WebUI3d2d:SetMouseEventsEnabled(bEnabled)
-    self.mouse_events_enabled = (bEnabled and true or false)
+---Sets the game inputs kept from firing while the WebUI3d2d is targeted; the others reach the game as well as the WebUI3d2d. Keys are only kept from the game while the WebUI3d2d captures the keyboard (`SetKeyboardCapture`)
+---@param iInputs WebUI3d2dInput @Flags, e.g. `WebUI3d2dInput.Mouse`
+function WebUI3d2d:SetBlockedGameInput(iInputs)
+    if (math.type(iInputs) ~= "integer") then return end
+    self.__blocked_game_input = (iInputs & iGameInputMask)
 end
 
 ---`🔸 Client`<br>
----Returns wether the WebUI3d2d allows mouse events or not
----@return boolean @Is mouse events allowed?
-function WebUI3d2d:IsMouseEventsEnabled()
-    return self.mouse_events_enabled
-end
-
----`🔸 Client`<br>
----Enable or disable the keyboard input
----@param bEnabled boolean @Should the WebUI3d2d accept keyboard input or not
-function WebUI3d2d:SetKeyboardInputEnabled(bEnabled)
-    self.keyboard_input_enabled = (bEnabled and true or false)
-end
-
----`🔸 Client`<br>
----Returns wether the WebUI3d2d accepts keyboard input or not
----@return boolean @Is keyboard input allowed?
-function WebUI3d2d:IsKeyboardInputEnabled()
-    return self.keyboard_input_enabled
+---Returns the game inputs kept from firing while the WebUI3d2d is targeted
+---@return WebUI3d2dInput @Flags
+function WebUI3d2d:GetBlockedGameInput()
+    return self.__blocked_game_input
 end
 
 ---`🔸 Client`<br>
@@ -1039,21 +1173,21 @@ end
 ---@param sKey string @The key to be aliased
 ---@param sMouseButton string @The mouse button to be aliased
 function WebUI3d2d:AddMouseAliasKey(sKey, sMouseButton)
-    self.mouse_aliases[sKey] = sMouseButton
+    self.__mouse_aliases[sKey] = sMouseButton
 end
 
 ---`🔸 Client`<br>
 ---Removes a key from the mouse aliases
 ---@param sKey string @The key to be removed
 function WebUI3d2d:RemoveMouseAliasKey(sKey)
-    self.mouse_aliases[sKey] = nil
+    self.__mouse_aliases[sKey] = nil
 end
 
 ---`🔸 Client`<br>
 ---Returns the mouse aliases table
 ---@return table<string, string> @The mouse aliases
 function WebUI3d2d:GetAllMouseAliasKeys()
-    return self.mouse_aliases
+    return self.__mouse_aliases
 end
 
 ---`🔸 Client`<br>
@@ -1061,32 +1195,49 @@ end
 ---@param sKey string @The key to be checked
 ---@return string @The mouse button aliased to the key
 function WebUI3d2d:GetMouseAliasKey(sKey)
-    return self.mouse_aliases[sKey]
+    return self.__mouse_aliases[sKey]
 end
 
 ---`🔸 Client`<br>
----Enable or disable the reload on fail
----@param bReloadOnFail boolean @Should the WebUI3d2d reload on fail or not
-function WebUI3d2d:SetReloadOnFail(bReloadOnFail)
-    self.reload_on_fail = bReloadOnFail
+---Enable or disable reloading the page 2 seconds after it fails to load
+---@param bEnabled boolean @Should the WebUI3d2d reload on fail
+function WebUI3d2d:SetReloadOnFailEnabled(bEnabled)
+    self.__reload_on_fail = (bEnabled and true or false)
 end
 
 ---`🔸 Client`<br>
----Returns wether the WebUI3d2d reload on fail or not
----@return boolean @Should the WebUI3d2d reload on fail or not
-function WebUI3d2d:ShouldReloadOnFail()
-    return self.reload_on_fail
+---Returns whether the WebUI3d2d reloads its page when it fails to load
+---@return boolean @Is reload on fail enabled?
+function WebUI3d2d:IsReloadOnFailEnabled()
+    return self.__reload_on_fail
 end
 
 ---`🔸 Client`<br>
----Returns wether the WebUI3d2d is interactable or not
+---Returns whether the WebUI3d2d can be targeted with the current control: the cursor while the mouse is enabled, aiming otherwise
 ---@return boolean @Is the WebUI3d2d interactable?
 function WebUI3d2d:IsInteractable()
-    if Input.IsMouseEnabled() then
-        return self:IsCursorTraceControlEnabled()
-    end
+    return ((self:GetTargeting() & getTargetingControl(Input.IsMouseEnabled())) ~= 0)
+end
 
-    return self:IsCameraTraceControlEnabled()
+---`🔸 Client`<br>
+---Returns the cursor's position on the page, in pixels: (0, 0) while the WebUI3d2d isn't targeted
+---@return Vector2D @The cursor position
+function WebUI3d2d:GetCursorPosition()
+    return Vector2D(self.__cursor_x, self.__cursor_y)
+end
+
+---`🔸 Client`<br>
+---Freezes or resumes the page's rendering to the mesh. Its JavaScript keeps running either way, so `OnWebUI3d2dFreezeChange` is called on a change for the page's own script to pause its work
+---@param bFreeze boolean @Should the WebUI3d2d be frozen
+function WebUI3d2d:SetFreeze(bFreeze)
+    bFreeze = (bFreeze and true or false)
+    local bChanged = (self:IsFrozen() ~= bFreeze)
+
+    self.Super:SetFreeze(bFreeze)
+
+    if bChanged then
+        Events.Call("OnWebUI3d2dFreezeChange", self, bFreeze)
+    end
 end
 
 ---`🔸 Client`<br>
@@ -1094,15 +1245,15 @@ end
 ---@param bAwake boolean @Should the WebUI3d2d stay awake
 ---@param iReleaseDelay? integer @On release, milliseconds before it may freeze again (default 0)
 function WebUI3d2d:SetKeepAwake(bAwake, iReleaseDelay)
-    self.keep_awake = (bAwake and true or false)
+    self.__keep_awake = (bAwake and true or false)
 
-    if self.keep_awake then
-        self.keep_awake_until = nil
-        if self.ready and self:IsFrozen() then
+    if self.__keep_awake then
+        self.__keep_awake_until = nil
+        if self.__ready and self:IsFrozen() then
             self:SetFreeze(false)
         end
     else
-        self.keep_awake_until = (Client.GetTime() + mathMax(0, iReleaseDelay or 0))
+        self.__keep_awake_until = (Client.GetTime() + mathMax(0, iReleaseDelay or 0))
     end
 end
 
@@ -1110,47 +1261,57 @@ end
 ---Returns wether the WebUI3d2d is kept awake, by SetKeepAwake or its release delay
 ---@return boolean @Is the WebUI3d2d kept awake?
 function WebUI3d2d:IsKeptAwake()
-    if self.keep_awake then return true end
-    return (self.keep_awake_until ~= nil) and (Client.GetTime() < self.keep_awake_until)
+    if self.__keep_awake then return true end
+    return (self.__keep_awake_until ~= nil) and (Client.GetTime() < self.__keep_awake_until)
 end
 
--- Cursor related
+-- Cursor decal
 ----------------------------------------------------------------------
 
 ---`🔸 Client`<br>
----Enable or disable the 3D cursor decal
+---Enable or disable the 3D cursor decal, shown with either targeting control. Turned off, the decal goes at once; turned on, it shows on the next cursor move
 ---@param bEnabled boolean @Should the 3D cursor decal be enabled or not
 function WebUI3d2d:SetCursorDecalEnabled(bEnabled)
-    self.cursor_decal_enabled = (bEnabled and true or false)
+    self.__cursor_decal_enabled = (bEnabled and true or false)
+
+    if not self.__cursor_decal_enabled and self.__cursor_decal and self.__cursor_decal:IsValid() then
+        self.__cursor_decal:Destroy()
+        self.__cursor_decal = nil
+    end
 end
 
 ---`🔸 Client`<br>
----Returns wether the 3D cursor decal is enabled or not
+---Returns whether the 3D cursor decal is enabled
 ---@return boolean @Is the 3D cursor decal enabled?
 function WebUI3d2d:IsCursorDecalEnabled()
-    return self.cursor_decal_enabled
+    return self.__cursor_decal_enabled
 end
 
 ---`🔸 Client`<br>
----Returns the 3D cursor decal
----@return Decal @The 3D cursor decal
+---Returns the 3D cursor, a small plane laid on the mesh, nil until the cursor first moves on the targeted WebUI3d2d
+---@return StaticMesh|nil @The 3D cursor
 function WebUI3d2d:GetCursorDecal()
-    return self.cursor_decal
+    return self.__cursor_decal
 end
 
 ---`🔸 Client`<br>
----Sets the 3D cursor decal size
----@param fSize number @The new size of the 3D cursor decal
-function WebUI3d2d:SetCursorSize(fSize)
+---Sets the 3D cursor size: half its width, in cm
+---@param fSize number @Half the 3D cursor's width, in cm
+function WebUI3d2d:SetCursorDecalSize(fSize)
     if (type(fSize) ~= "number") or (fSize <= 0) then return end
-    self.cursor_size = fSize
+    self.__cursor_decal_size = fSize
+
+    -- A cursor already shown takes the size now, its tip back on the hit point at the next cursor move
+    if self.__cursor_decal and self.__cursor_decal:IsValid() then
+        self.__cursor_decal:SetScale(getCursorScale(fSize))
+    end
 end
 
 ---`🔸 Client`<br>
----Returns the 3D cursor decal size
----@return number @The size of the 3D cursor decal
-function WebUI3d2d:GetCursorSize()
-    return self.cursor_size or fDefaultCursorSize
+---Returns the 3D cursor size: half its width, in cm
+---@return number @Half the 3D cursor's width, in cm
+function WebUI3d2d:GetCursorDecalSize()
+    return self.__cursor_decal_size or DEFAULT_CURSOR_DECAL_SIZE
 end
 
 -- WebUI3d2d wrapper methods
@@ -1164,6 +1325,7 @@ local tSMWrapperMethods = {
     "GetLocation",
     "GetRotation",
     "GetScale",
+    "GetScreenPercentage",
     "RotateTo",
     "SetLifeSpan",
     "SetLocation",
@@ -1177,6 +1339,6 @@ local tSMWrapperMethods = {
 
 for _, sMethod in ipairs(tSMWrapperMethods) do
     WebUI3d2d[sMethod] = function(self, ...)
-        return self.mesh[sMethod](self.mesh, ...)
+        return self.__mesh[sMethod](self.__mesh, ...)
     end
 end
